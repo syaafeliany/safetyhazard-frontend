@@ -301,10 +301,12 @@ function StatusRow({
   icon: Icon,
   label,
   state,
+  note,
 }: {
   icon: LucideIcon;
   label: string;
   state: RowState;
+  note?: string;
 }) {
   const isOk = state === "present" || state === "clear";
   const isNone = state === "none";
@@ -332,6 +334,9 @@ function StatusRow({
       <span className="flex items-center gap-2.5 text-sm text-foreground">
         <Icon className={cn("size-4", iconColor)} strokeWidth={1.75} />
         {label}
+        {note && (
+          <span className="text-xs text-muted">({note})</span>
+        )}
       </span>
       <span
         className={cn(
