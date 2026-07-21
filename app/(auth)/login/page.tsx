@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import { setSession } from "@/lib/auth";
 import type { UserRole } from "@/lib/session";
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://safetyhazard-backend-production.up.railway.app";
 
 /**
  * Halaman Sign In — tata letak terpusat, kartu putih/gelap dengan tab minimalis

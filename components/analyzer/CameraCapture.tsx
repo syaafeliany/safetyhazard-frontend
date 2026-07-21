@@ -23,7 +23,7 @@ import type {
   DetectionSummary,
 } from "@/components/analyzer/HazardResultPanel";
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://safetyhazard-backend-production.up.railway.app";
 
 type Mode = "camera" | "upload";
 type CamStatus = "idle" | "loading" | "live" | "error";
@@ -131,7 +131,7 @@ export function CameraCapture({
 
   // Upload → simpan & analisa.
   const [location, setLocation] = useState("");
-  const [area, setArea] = useState("");
+  const [area, setArea] = useState("general");
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -204,6 +204,7 @@ export function CameraCapture({
     async (file: Blob, srcW: number, srcH: number) => {
       const form = new FormData();
       form.append("image", file, "frame.jpg");
+      form.append("area", area || "general");
       const { data, ok } = await api.post<{
         detections: DetectionBox[];
         summary?: DetectionSummary;
@@ -212,7 +213,7 @@ export function CameraCapture({
         applyDetections(data.detections, srcW, srcH, data.summary ?? null);
       }
     },
-    [applyDetections]
+    [applyDetections, area]
   );
 
   // Loop deteksi live: tiap tick ambil frame & kirim (skip kalau masih ada
@@ -682,14 +683,18 @@ export function CameraCapture({
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-muted">
-                Area <span className="text-muted/60">(optional)</span>
+                Area <span className="text-muted/60">(required)</span>
               </label>
-              <input
+              <select
                 value={area}
                 onChange={(e) => setArea(e.target.value)}
-                placeholder="e.g. Zone 3"
-                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted/60 focus:border-brand"
-              />
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-brand"
+              >
+                <option value="general">General/All Areas</option>
+                <option value="spray_decoration">Spray/Decoration Area</option>
+                <option value="central_staging">Central Staging Area</option>
+                <option value="assembly">Assembly Area</option>
+              </select>
             </div>
           </div>
           {saveError && (

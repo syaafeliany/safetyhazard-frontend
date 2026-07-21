@@ -57,7 +57,7 @@ interface ReportDetailData {
   hazards: HazardDetail[];
 }
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://safetyhazard-backend-production.up.railway.app";
 
 /**
  * ReportDetailModal — detail laporan inspeksi. Saat dibuka, mengambil detail
