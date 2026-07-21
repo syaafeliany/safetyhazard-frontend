@@ -20,6 +20,8 @@ export default function AnalyzerPage() {
   // Ringkasan mentah (person/helmet/vest) — supaya panel bisa membedakan
   // "Present" dari "No person".
   const [summary, setSummary] = useState<DetectionSummary | null>(null);
+  // Area yang dipilih untuk menentukan PPE requirements
+  const [area, setArea] = useState<string>("spray_decoration");
 
   return (
     <div>
@@ -32,10 +34,18 @@ export default function AnalyzerPage() {
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
         <div className="lg:col-span-8">
-          <CameraCapture onDetections={setDetections} onSummary={setSummary} />
+          <CameraCapture 
+            onDetections={setDetections} 
+            onSummary={setSummary}
+            onAreaChange={setArea}
+          />
         </div>
         <div className="lg:col-span-4">
-          <HazardResultPanel detections={detections} summary={summary} />
+          <HazardResultPanel 
+            detections={detections} 
+            summary={summary}
+            area={area}
+          />
         </div>
       </div>
     </div>

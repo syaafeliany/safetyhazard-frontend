@@ -102,9 +102,11 @@ export function drawDetections(
 export function CameraCapture({
   onDetections,
   onSummary,
+  onAreaChange,
 }: {
   onDetections?: (d: DetectionBox[] | null) => void;
   onSummary?: (s: DetectionSummary | null) => void;
+  onAreaChange?: (area: string) => void;
 }) {
   const [mode, setMode] = useState<Mode>("camera");
 
@@ -129,9 +131,8 @@ export function CameraCapture({
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [previewing, setPreviewing] = useState(false);
 
-  // Upload → simpan & analisa.
-  const [location, setLocation] = useState("");
-  const [area, setArea] = useState("general");
+  // Upload → simpan & analisa (location dihapus, pakai area sebagai location).
+  const [area, setArea] = useState("spray_decoration");
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -360,8 +361,8 @@ export function CameraCapture({
   // nama file supaya bisa dipakai baik oleh upload gambar MAUPUN capture
   // frame dari live camera.
   const saveAndAnalyze = async (blob: Blob, fileName: string) => {
-    if (!location.trim()) {
-      setSaveError("Location is required.");
+    if (!area.trim()) {
+      setSaveError("Area is required.");
       return;
     }
     setSaveError(null);
@@ -371,8 +372,9 @@ export function CameraCapture({
     setSaving(true);
     try {
       const form = new FormData();
-      form.append("location", location.trim());
-      if (area.trim()) form.append("area", area.trim());
+      // Gunakan area sebagai location (location field dihapus dari UI)
+      form.append("location", area.trim());
+      form.append("area", area.trim());
       form.append("image", blob, fileName);
 
       const created = await api.post<{ inspection_id: string }>(
@@ -665,37 +667,26 @@ export function CameraCapture({
       )}
 
       {/* Form simpan & analisa. Ditampilkan untuk upload (gambar dipilih)
-          MAUPUN live camera (kamera menyala) — keduanya butuh Location untuk
+          MAUPUN live camera (kamera menyala) — hanya butuh Area untuk
           menyimpan inspeksi & menjalankan analisa. */}
       {((mode === "upload" && imageSrc) || (mode === "camera" && isLive)) && (
         <div className="mt-4 space-y-3">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div>
-              <label className="mb-1 block text-xs font-medium text-muted">
-                Location <span className="text-brand">*</span>
-              </label>
-              <input
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
-                placeholder="e.g. Assembly Line A"
-                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted/60 focus:border-brand"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-medium text-muted">
-                Area <span className="text-muted/60">(required)</span>
-              </label>
-              <select
-                value={area}
-                onChange={(e) => setArea(e.target.value)}
-                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-brand"
-              >
-                <option value="general">General/All Areas</option>
-                <option value="spray_decoration">Spray/Decoration Area</option>
-                <option value="central_staging">Central Staging Area</option>
-                <option value="assembly">Assembly Area</option>
-              </select>
-            </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-muted">
+              Area <span className="text-brand">*</span>
+            </label>
+            <select
+              value={area}
+              onChange={(e) => {
+                setArea(e.target.value);
+                onAreaChange?.(e.target.value);
+              }}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-brand"
+            >
+              <option value="spray_decoration">Spray/Decoration Area</option>
+              <option value="central_staging">Central Staging Area</option>
+              <option value="assembly">Assembly Area</option>
+            </select>
           </div>
           {saveError && (
             <p className="rounded-lg bg-brand/10 px-3 py-2 text-sm text-brand">

@@ -10,6 +10,9 @@ import {
   MinusCircle,
   AlertTriangle,
   ScanEye,
+  Glasses,
+  Hand,
+  ShirtIcon,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -83,11 +86,30 @@ const RISK_BAND_META: Record<
 // ini dianggap "penuh"). Sekadar visual; band tetap sumber kebenaran.
 const RISK_BAR_MAX = 30;
 
-// PPE yang dilacak backend (inferensi no_helmet / no_safety_vest).
-const PPE_TRACKED: { label: string; icon: LucideIcon; violationLabel: string }[] = [
-  { label: "Helmet", icon: HardHat, violationLabel: "no helmet" },
-  { label: "Safety Vest", icon: Shield, violationLabel: "no safety vest" },
-];
+// Area-specific PPE requirements
+type PPEItem = { label: string; icon: LucideIcon; violationLabel: string };
+
+const AREA_PPE_MAP: Record<string, PPEItem[]> = {
+  spray_decoration: [
+    { label: "Safety Glasses", icon: Glasses, violationLabel: "no safety glasses" },
+    { label: "Safety Gloves", icon: Hand, violationLabel: "no safety gloves" },
+    { label: "Apron", icon: ShirtIcon, violationLabel: "no apron" },
+  ],
+  central_staging: [
+    { label: "Safety Helmet", icon: HardHat, violationLabel: "no safety helmet" },
+    { label: "Safety Boots", icon: Shield, violationLabel: "no safety boots" },
+  ],
+  assembly: [
+    // Assembly area tidak punya mandatory PPE, fokus pada lane violations
+  ],
+};
+
+// Fallback untuk area yang tidak dikenali
+const DEFAULT_PPE: PPEItem[] = [];
+
+function getPPEForArea(area: string): PPEItem[] {
+  return AREA_PPE_MAP[area] || DEFAULT_PPE;
+}
 
 // Hazard lingkungan yang dilacak backend.
 const ENV_TRACKED: { label: string; icon: LucideIcon; detectLabel: string }[] = [
@@ -105,9 +127,11 @@ const ENV_TRACKED: { label: string; icon: LucideIcon; detectLabel: string }[] = 
 export function HazardResultPanel({
   detections,
   summary,
+  area = "spray_decoration",
 }: {
   detections?: DetectionBox[] | null;
   summary?: DetectionSummary | null;
+  area?: string;
 }) {
   // Belum ada deteksi yang dijalankan sama sekali.
   if (detections == null) {
@@ -125,6 +149,9 @@ export function HazardResultPanel({
       </div>
     );
   }
+
+  // Get PPE requirements for selected area
+  const PPE_TRACKED = getPPEForArea(area);
 
   const labels = new Set(detections.map((d) => d.label.toLowerCase()));
 
