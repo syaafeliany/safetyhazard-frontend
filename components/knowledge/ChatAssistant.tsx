@@ -18,6 +18,8 @@ import {
 import { cn } from "@/lib/utils";
 import { api } from "@/lib/api";
 import { ChipButton } from "./ChipButton";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { translations } from "@/lib/translations";
 
 interface ChatOption {
   label: string;
@@ -45,134 +47,6 @@ interface ChatResponse {
   sources?: ChatSource[];
 }
 
-// Translations object for bilingual UI
-const TRANSLATIONS = {
-  en: {
-    welcome_message:
-      "Hello! I am the EHSS Safety Assistant. Select a topic below or type your question directly.",
-    input_placeholder: "Ask about safety procedures, hazards, PPE...",
-    search_other: "Search Another Topic",
-    back_to_menu: "Back to Main Menu",
-    sources_title: "Sources",
-    submenu_intro: "Here are some questions about",
-    categories: {
-      PPE: "PPE",
-      Housekeeping: "Housekeeping",
-      Emergency: "Emergency",
-      "Chemical Safety": "Chemical Safety",
-      "Machine Safety": "Machine Safety",
-      "Electrical Safety": "Electrical Safety",
-      "Fire Safety": "Fire Safety",
-      "Fall Protection": "Fall Protection",
-    },
-    questions: {
-      PPE: [
-        "What PPE is required in the Spray/Decoration Area?",
-        "What PPE is required in the Central Staging Area?",
-        "What are the general PPE requirements under OSHA 1910.132?",
-        "How should PPE be inspected before use?",
-      ],
-      Housekeeping: [
-        "What are the housekeeping standards for production areas?",
-        "How should spills be handled immediately?",
-        "What is the procedure for wet floor hazard reporting?",
-      ],
-      Emergency: [
-        "What is the emergency evacuation procedure?",
-        "Where are the emergency exits located?",
-        "What are the requirements for emergency action plans under OSHA 1910.38?",
-      ],
-      "Chemical Safety": [
-        "What are the chemical handling requirements in the Spray Area?",
-        "How should hazardous chemicals be stored?",
-        "What does OSHA 1910.1200 require for hazard communication?",
-      ],
-      "Machine Safety": [
-        "What are the machine guarding requirements under OSHA 1910.212?",
-        "What is the lockout/tagout procedure?",
-        "How should machinery be inspected before operation?",
-      ],
-      "Electrical Safety": [
-        "What are the electrical safety requirements under OSHA 1910.303?",
-        "How should electrical hazards be reported?",
-        "What PPE is required for electrical work?",
-      ],
-      "Fire Safety": [
-        "What are the fire prevention requirements under OSHA 1910.39?",
-        "How should fire extinguishers be maintained?",
-        "What is the fire evacuation procedure?",
-      ],
-      "Fall Protection": [
-        "What are the fall protection requirements under OSHA 1910.28?",
-        "When is a safety harness required?",
-        "How should ladders be used safely?",
-      ],
-    },
-  },
-  id: {
-    welcome_message:
-      "Halo! Saya EHSS Safety Assistant. Pilih topik di bawah atau ketik pertanyaan Anda langsung.",
-    input_placeholder: "Tanya tentang prosedur keselamatan, bahaya, APD...",
-    search_other: "Cari Topik Lain",
-    back_to_menu: "Kembali ke Menu Utama",
-    sources_title: "Sumber",
-    submenu_intro: "Berikut beberapa pertanyaan tentang",
-    categories: {
-      PPE: "APD",
-      Housekeeping: "Kebersihan",
-      Emergency: "Darurat",
-      "Chemical Safety": "Keselamatan Bahan Kimia",
-      "Machine Safety": "Keselamatan Mesin",
-      "Electrical Safety": "Keselamatan Listrik",
-      "Fire Safety": "Keselamatan Kebakaran",
-      "Fall Protection": "Perlindungan Jatuh",
-    },
-    questions: {
-      PPE: [
-        "APD apa yang wajib digunakan di Area Spray/Dekorasi?",
-        "APD apa yang wajib digunakan di Central Staging Area?",
-        "Apa persyaratan APD umum berdasarkan OSHA 1910.132?",
-        "Bagaimana cara memeriksa APD sebelum digunakan?",
-      ],
-      Housekeeping: [
-        "Apa standar kebersihan untuk area produksi?",
-        "Bagaimana cara menangani tumpahan dengan segera?",
-        "Apa prosedur pelaporan bahaya lantai basah?",
-      ],
-      Emergency: [
-        "Apa prosedur evakuasi darurat?",
-        "Di mana letak pintu darurat?",
-        "Apa persyaratan rencana tindakan darurat berdasarkan OSHA 1910.38?",
-      ],
-      "Chemical Safety": [
-        "Apa persyaratan penanganan bahan kimia di Area Spray?",
-        "Bagaimana cara menyimpan bahan kimia berbahaya?",
-        "Apa yang disyaratkan OSHA 1910.1200 untuk komunikasi bahaya?",
-      ],
-      "Machine Safety": [
-        "Apa persyaratan pengaman mesin berdasarkan OSHA 1910.212?",
-        "Apa prosedur lockout/tagout?",
-        "Bagaimana cara memeriksa mesin sebelum dioperasikan?",
-      ],
-      "Electrical Safety": [
-        "Apa persyaratan keselamatan listrik berdasarkan OSHA 1910.303?",
-        "Bagaimana cara melaporkan bahaya listrik?",
-        "APD apa yang diperlukan untuk pekerjaan kelistrikan?",
-      ],
-      "Fire Safety": [
-        "Apa persyaratan pencegahan kebakaran berdasarkan OSHA 1910.39?",
-        "Bagaimana cara merawat alat pemadam kebakaran?",
-        "Apa prosedur evakuasi kebakaran?",
-      ],
-      "Fall Protection": [
-        "Apa persyaratan perlindungan jatuh berdasarkan OSHA 1910.28?",
-        "Kapan harness keselamatan wajib digunakan?",
-        "Bagaimana cara menggunakan tangga dengan aman?",
-      ],
-    },
-  },
-};
-
 // Category definitions with icons (internal keys only - labels come from translations)
 const CATEGORY_KEYS = [
   "PPE",
@@ -197,14 +71,14 @@ const CATEGORY_ICONS: Record<string, React.ReactNode> = {
 };
 
 export function ChatAssistant() {
-  const [lang, setLang] = useState<"en" | "id">("en");
+  const { lang, toggleLang } = useLanguage();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [typing, setTyping] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  const t = TRANSLATIONS[lang];
+  const t = translations[lang].chatbot;
 
   // Generate welcome message based on current language
   const getWelcomeMessage = (): ChatMessage => ({
@@ -224,10 +98,10 @@ export function ChatAssistant() {
     setMessages([getWelcomeMessage()]);
   }, [lang]);
 
-  // Toggle language and reset chat
-  const toggleLang = () => {
-    setLang((prev) => (prev === "en" ? "id" : "en"));
-  };
+  // Toggle language - now removed, using global context
+  // const toggleLang = () => {
+  //   setLang((prev) => (prev === "en" ? "id" : "en"));
+  // };
 
   // Auto-scroll ke pesan terbaru
   useEffect(() => {
