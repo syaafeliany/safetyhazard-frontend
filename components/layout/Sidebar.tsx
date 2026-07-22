@@ -20,8 +20,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/layout/Logo";
 import { clearSession } from "@/lib/auth";
-import { useLanguage } from "@/contexts/LanguageContext";
-import { translations } from "@/lib/translations";
+import { useLang } from "@/contexts/LanguageContext";
 
 export type UserRole = "admin" | "inspector" | "manager";
 
@@ -69,10 +68,9 @@ const NAV: NavItem[] = [
 export function Sidebar({ role = "admin" }: { role?: UserRole }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { lang } = useLanguage();
+  const { t } = useLang();
   const [collapsed, setCollapsed] = useState(false);
   const items = NAV.filter((item) => item.roles.includes(role));
-  const t = translations[lang].sidebar;
 
   const handleLogout = () => {
     // Hapus cookie sesi FastAPI (sh_token/sh_role/sh_name), lalu ke /login.
@@ -105,10 +103,10 @@ export function Sidebar({ role = "admin" }: { role?: UserRole }) {
             pathname === item.href || pathname.startsWith(`${item.href}/`);
           const Icon = item.icon;
           return (
-            <Link
+              <Link
               key={item.href}
               href={item.href}
-              title={collapsed ? t[item.labelKey] : undefined}
+              title={collapsed ? t.nav[item.labelKey] : undefined}
               className={cn(
                 "group/navitem relative flex items-center gap-3 rounded-full px-3 py-2.5 text-sm font-medium transition-colors",
                 collapsed && "justify-center",
@@ -124,7 +122,7 @@ export function Sidebar({ role = "admin" }: { role?: UserRole }) {
                 )}
                 strokeWidth={active ? 2.25 : 1.75}
               />
-              {!collapsed && <span className="truncate">{t[item.labelKey]}</span>}
+              {!collapsed && <span className="truncate">{t.nav[item.labelKey]}</span>}
 
               {/* Tooltip saat mode ringkas */}
               {collapsed && (
@@ -132,7 +130,7 @@ export function Sidebar({ role = "admin" }: { role?: UserRole }) {
                   role="tooltip"
                   className="pointer-events-none absolute left-full top-1/2 z-50 ml-3 -translate-y-1/2 whitespace-nowrap rounded-md bg-slate-900 px-2.5 py-1.5 text-xs font-medium text-white opacity-0 shadow-lg transition-opacity group-hover/navitem:opacity-100 dark:bg-slate-700"
                 >
-                  {t[item.labelKey]}
+                  {t.nav[item.labelKey]}
                 </span>
               )}
             </Link>
@@ -144,14 +142,14 @@ export function Sidebar({ role = "admin" }: { role?: UserRole }) {
       <div className="p-3 border-t border-border">
         <button
           onClick={handleLogout}
-          title={collapsed ? t.logout : undefined}
+          title={collapsed ? t.nav.logout : undefined}
           className={cn(
             "group/navitem relative flex w-full items-center gap-3 rounded-full px-3 py-2.5 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 dark:text-red-500 dark:hover:bg-red-950/50",
             collapsed && "justify-center"
           )}
         >
           <LogOut className="size-5 shrink-0" strokeWidth={1.75} />
-          {!collapsed && <span>{t.logout}</span>}
+          {!collapsed && <span>{t.nav.logout}</span>}
 
           {/* Tooltip Logout saat mode ringkas */}
           {collapsed && (
@@ -159,7 +157,7 @@ export function Sidebar({ role = "admin" }: { role?: UserRole }) {
               role="tooltip"
               className="pointer-events-none absolute left-full top-1/2 z-50 ml-3 -translate-y-1/2 whitespace-nowrap rounded-md bg-slate-900 px-2.5 py-1.5 text-xs font-medium text-white opacity-0 shadow-lg transition-opacity group-hover/navitem:opacity-100 dark:bg-slate-700"
             >
-              {t.logout}
+              {t.nav.logout}
             </span>
           )}
         </button>
@@ -176,9 +174,9 @@ export function Sidebar({ role = "admin" }: { role?: UserRole }) {
         <button
           type="button"
           onClick={() => setCollapsed((v) => !v)}
-          title={collapsed ? t.expand : t.collapse}
+          title={collapsed ? t.nav.expand : t.nav.collapse}
           className="flex size-9 items-center justify-center rounded-lg text-muted transition-colors hover:bg-foreground/5 hover:text-foreground"
-          aria-label={collapsed ? t.expand : t.collapse}
+          aria-label={collapsed ? t.nav.expand : t.nav.collapse}
         >
           {collapsed ? (
             <PanelLeftOpen className="size-5" strokeWidth={1.75} />
@@ -193,9 +191,8 @@ export function Sidebar({ role = "admin" }: { role?: UserRole }) {
 
 function ThemeToggle({ collapsed }: { collapsed: boolean }) {
   const { theme, setTheme } = useTheme();
-  const { lang } = useLanguage();
+  const { t } = useLang();
   const [mounted, setMounted] = useState(false);
-  const t = translations[lang].sidebar;
 
   // Hindari mismatch hydrasi: render placeholder sampai ter-mount.
   useEffect(() => {
@@ -208,7 +205,7 @@ function ThemeToggle({ collapsed }: { collapsed: boolean }) {
     <button
       type="button"
       onClick={() => setTheme(isDark ? "light" : "dark")}
-      title={isDark ? t.light_mode : t.dark_mode}
+      title={isDark ? t.nav.light_mode : t.nav.dark_mode}
       className="flex size-9 items-center justify-center rounded-lg text-muted transition-colors hover:bg-foreground/5 hover:text-foreground"
       aria-label="Toggle theme"
     >

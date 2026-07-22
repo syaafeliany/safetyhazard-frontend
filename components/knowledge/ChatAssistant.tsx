@@ -13,13 +13,11 @@ import {
   Zap,
   Flame,
   ArrowDownToLine,
-  Globe,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { api } from "@/lib/api";
 import { ChipButton } from "./ChipButton";
-import { useLanguage } from "@/contexts/LanguageContext";
-import { translations } from "@/lib/translations";
+import { useLang } from "@/contexts/LanguageContext";
 
 interface ChatOption {
   label: string;
@@ -71,22 +69,20 @@ const CATEGORY_ICONS: Record<string, React.ReactNode> = {
 };
 
 export function ChatAssistant() {
-  const { lang, toggleLang } = useLanguage();
+  const { lang, t } = useLang();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [typing, setTyping] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  const t = translations[lang].chatbot;
-
   // Generate welcome message based on current language
   const getWelcomeMessage = (): ChatMessage => ({
     id: "welcome",
     role: "assistant",
-    content: t.welcome_message,
+    content: t.ehss.welcome_message,
     options: CATEGORY_KEYS.map((key) => ({
-      label: t.categories[key],
+      label: t.ehss.categories[key],
       value: key,
       type: "CATEGORY" as const,
       icon: CATEGORY_ICONS[key],
@@ -97,11 +93,6 @@ export function ChatAssistant() {
   useEffect(() => {
     setMessages([getWelcomeMessage()]);
   }, [lang]);
-
-  // Toggle language - now removed, using global context
-  // const toggleLang = () => {
-  //   setLang((prev) => (prev === "en" ? "id" : "en"));
-  // };
 
   // Auto-scroll ke pesan terbaru
   useEffect(() => {
@@ -116,7 +107,7 @@ export function ChatAssistant() {
     if (option.type === "CATEGORY") {
       // Show submenu with suggested questions
       const categoryKey = option.value;
-      const translatedQuestions = t.questions[categoryKey as keyof typeof t.questions];
+      const translatedQuestions = t.ehss.questions[categoryKey as keyof typeof t.ehss.questions];
       
       if (!translatedQuestions) return;
 
@@ -133,7 +124,7 @@ export function ChatAssistant() {
           type: "QUESTION" as const,
         })),
         {
-          label: t.back_to_menu,
+          label: t.ehss.back_to_menu,
           value: "MAIN_MENU",
           type: "NAVIGATION" as const,
         },
@@ -142,7 +133,7 @@ export function ChatAssistant() {
       const assistantMsg: ChatMessage = {
         id: `a-${Date.now()}`,
         role: "assistant",
-        content: `${t.submenu_intro} ${option.label}:`,
+        content: `${t.ehss.submenu_intro} ${option.label}:`,
         options: submenuOptions,
       };
 
@@ -185,12 +176,12 @@ export function ChatAssistant() {
     // Post-answer navigation options (translated)
     const postAnswerOptions: ChatOption[] = [
       {
-        label: t.search_other,
+        label: t.ehss.search_other,
         value: "SEARCH",
         type: "NAVIGATION",
       },
       {
-        label: t.back_to_menu,
+        label: t.ehss.back_to_menu,
         value: "MAIN_MENU",
         type: "NAVIGATION",
       },
@@ -231,42 +222,14 @@ export function ChatAssistant() {
         </span>
         <div className="min-w-0 flex-1">
           <h2 className="text-base font-semibold text-foreground">
-            EHSS AI Assistant
+            {t.ehss.chatbot_title}
           </h2>
           <p className="flex items-center gap-1.5 text-xs text-muted">
             <span className="size-1.5 rounded-full bg-emerald-500" />
-            Powered by your knowledge base
+            {t.ehss.chatbot_subtitle}
           </p>
         </div>
         <Sparkles className="size-5 text-brand" strokeWidth={1.75} />
-        
-        {/* Language Toggle */}
-        <div className="flex items-center gap-1 rounded-full border border-gray-300 bg-white p-0.5">
-          <button
-            onClick={toggleLang}
-            className={cn(
-              "flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold transition-colors",
-              lang === "en"
-                ? "bg-[#E3000F] text-white"
-                : "bg-transparent text-gray-500 hover:text-gray-700"
-            )}
-          >
-            <Globe className="size-3" />
-            EN
-          </button>
-          <button
-            onClick={toggleLang}
-            className={cn(
-              "flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold transition-colors",
-              lang === "id"
-                ? "bg-[#E3000F] text-white"
-                : "bg-transparent text-gray-500 hover:text-gray-700"
-            )}
-          >
-            <Globe className="size-3" />
-            ID
-          </button>
-        </div>
       </div>
 
       {/* Riwayat pesan (scrollable) */}
@@ -332,7 +295,7 @@ export function ChatAssistant() {
                 <div className="ml-11 text-xs text-muted">
                   <details className="cursor-pointer">
                     <summary className="font-medium">
-                      {t.sources_title} ({msg.sources.length})
+                      {t.ehss.sources_title} ({msg.sources.length})
                     </summary>
                     <ul className="mt-2 space-y-1 pl-4">
                       {msg.sources.map((source, idx) => (
@@ -373,7 +336,7 @@ export function ChatAssistant() {
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             rows={1}
-            placeholder={t.input_placeholder}
+            placeholder={t.ehss.input_placeholder}
             className="max-h-32 min-h-[40px] flex-1 resize-none bg-transparent px-2 py-2 text-sm text-foreground outline-none placeholder:text-muted/60"
           />
           <button
