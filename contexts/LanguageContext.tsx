@@ -373,7 +373,7 @@ interface LanguageContextType {
   lang: Language;
   setLang: (lang: Language) => void;
   toggleLang: () => void;
-  t: typeof TRANSLATIONS.en;
+  t: typeof TRANSLATIONS["en"] | typeof TRANSLATIONS["id"];
 }
 
 const LanguageContext = createContext<LanguageContextType | undefined>(

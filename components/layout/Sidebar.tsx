@@ -25,7 +25,7 @@ import { useLang } from "@/contexts/LanguageContext";
 export type UserRole = "admin" | "inspector" | "manager";
 
 type NavItem = {
-  labelKey: keyof typeof translations.en.sidebar;
+  labelKey: "dashboard" | "hazard_analyzer" | "reports" | "ehss_knowledge" | "admin";
   href: string;
   icon: LucideIcon;
   roles: UserRole[];
