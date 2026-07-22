@@ -318,26 +318,6 @@ export function HazardResultPanel({
           ))}
         </ul>
       </section>
-
-      <hr className="my-4 border-border" />
-
-      {/* Section 2 — Environmental Hazards */}
-      <section>
-        <h3 className="mb-2.5 text-xs font-semibold uppercase tracking-wide text-muted">
-          Environmental Hazards
-        </h3>
-        <ul className="space-y-2">
-          {env.map((item) => (
-            <StatusRow
-              key={item.label}
-              icon={item.icon}
-              label={item.label}
-              // Untuk bahaya lingkungan: terdeteksi = bahaya (merah), else clear.
-              state={item.detected ? "detected" : "clear"}
-            />
-          ))}
-        </ul>
-      </section>
     </div>
   );
 }
