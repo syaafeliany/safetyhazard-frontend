@@ -11,20 +11,22 @@ import {
   type ReportStatus,
 } from "@/components/reports/ReportDetailModal";
 import { cn } from "@/lib/utils";
-
-const FILTERS = [
-  { key: "all", label: "All Reports" },
-  { key: "critical", label: "Critical" },
-  { key: "high", label: "High Risk" },
-  { key: "analyzed", label: "Analyzed" },
-  { key: "reported", label: "Reported" },
-];
+import { useLang } from "@/contexts/LanguageContext";
 
 export default function ReportsPage() {
+  const { t } = useLang();
   const [filter, setFilter] = useState("all");
   const [selected, setSelected] = useState<ReportItem | null>(null);
   const [reports, setReports] = useState<ReportItem[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const FILTERS = [
+    { key: "all", label: t.reports.filter_all },
+    { key: "critical", label: t.reports.filter_critical },
+    { key: "high", label: t.reports.filter_high },
+    { key: "analyzed", label: t.reports.filter_analyzed },
+    { key: "reported", label: t.reports.filter_reported },
+  ];
 
   useEffect(() => {
     let active = true;
@@ -48,9 +50,9 @@ export default function ReportsPage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-foreground">Reports</h1>
+        <h1 className="text-2xl font-bold text-foreground">{t.reports.title}</h1>
         <p className="mt-1 text-sm text-muted">
-          Inspection history and exportable safety reports
+          {t.reports.subtitle}
         </p>
       </div>
 
@@ -63,12 +65,12 @@ export default function ReportsPage() {
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="border-b border-border text-xs uppercase tracking-wide text-muted">
-                <th className="px-5 py-3 font-semibold">Date</th>
-                <th className="px-5 py-3 font-semibold">Location</th>
-                <th className="px-5 py-3 font-semibold">Inspector</th>
-                <th className="px-5 py-3 font-semibold">Status</th>
-                <th className="px-5 py-3 font-semibold">Risk</th>
-                <th className="px-5 py-3 text-right font-semibold">Issues</th>
+                <th className="px-5 py-3 font-semibold">{t.reports.table_date}</th>
+                <th className="px-5 py-3 font-semibold">{t.reports.table_location}</th>
+                <th className="px-5 py-3 font-semibold">{t.reports.table_inspector}</th>
+                <th className="px-5 py-3 font-semibold">{t.reports.table_status}</th>
+                <th className="px-5 py-3 font-semibold">{t.reports.table_risk}</th>
+                <th className="px-5 py-3 text-right font-semibold">{t.reports.table_issues}</th>
               </tr>
             </thead>
             <tbody>
@@ -100,7 +102,7 @@ export default function ReportsPage() {
                 <tr>
                   <td colSpan={6} className="px-5 py-12 text-center text-sm text-muted">
                     <Loader2 className="mx-auto mb-2 size-6 animate-spin opacity-60" />
-                    Loading reports...
+                    {t.reports.loading}
                   </td>
                 </tr>
               )}
@@ -108,7 +110,7 @@ export default function ReportsPage() {
                 <tr>
                   <td colSpan={6} className="px-5 py-12 text-center text-sm text-muted">
                     <FileText className="mx-auto mb-2 size-8 opacity-40" />
-                    No reports match this filter.
+                    {t.reports.no_match}
                   </td>
                 </tr>
               )}

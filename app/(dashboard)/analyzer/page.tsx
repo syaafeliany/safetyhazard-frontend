@@ -7,6 +7,7 @@ import {
   type DetectionBox,
   type DetectionSummary,
 } from "@/components/analyzer/HazardResultPanel";
+import { useLang } from "@/contexts/LanguageContext";
 
 /**
  * Hazard Analyzer (khusus Inspector) — kamera real-time / upload gambar di
@@ -15,6 +16,7 @@ import {
  * sinkron (keduanya sumber datanya sama: hasil backend).
  */
 export default function AnalyzerPage() {
+  const { t } = useLang();
   // null = belum ada deteksi dijalankan; [] = sudah jalan, area aman.
   const [detections, setDetections] = useState<DetectionBox[] | null>(null);
   // Ringkasan mentah (person/helmet/vest) — supaya panel bisa membedakan
@@ -26,9 +28,9 @@ export default function AnalyzerPage() {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-foreground">Hazard Analyzer</h1>
+        <h1 className="text-2xl font-bold text-foreground">{t.analyzer.title}</h1>
         <p className="mt-1 text-sm text-muted">
-          Real-time PPE &amp; environmental hazard detection
+          {t.analyzer.subtitle}
         </p>
       </div>
 

@@ -2,38 +2,44 @@
 
 import { Globe } from "lucide-react";
 import { useLang } from "@/contexts/LanguageContext";
+import { cn } from "@/lib/utils";
 
 export function DashboardHeader() {
   const { lang, toggleLang } = useLang();
 
   return (
     <div className="mb-6 flex items-center justify-end">
-      <button
-        onClick={toggleLang}
-        className="flex items-center gap-1.5 rounded-full border border-gray-200 px-3 py-1.5 text-xs font-semibold transition-all duration-150 hover:border-red-300"
-        title="Switch language"
-      >
-        <Globe size={13} className="text-gray-500" />
-        <span
-          className={
-            lang === "en"
-              ? "rounded-full bg-red-600 px-1.5 py-0.5 text-white"
-              : "text-gray-500"
-          }
+      <div className="relative flex items-center gap-1 rounded-full border border-gray-200 bg-white p-1">
+        {/* Sliding background indicator */}
+        <div
+          className={cn(
+            "absolute h-[calc(100%-8px)] w-[calc(50%-4px)] rounded-full bg-red-600 transition-all duration-300 ease-in-out",
+            lang === "en" ? "left-1" : "left-[calc(50%+2px)]"
+          )}
+        />
+        
+        <button
+          onClick={toggleLang}
+          className={cn(
+            "relative z-10 flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold transition-colors duration-300",
+            lang === "en" ? "text-white" : "text-gray-600"
+          )}
         >
+          <Globe size={13} />
           EN
-        </span>
-        <span className="text-gray-300">|</span>
-        <span
-          className={
-            lang === "id"
-              ? "rounded-full bg-red-600 px-1.5 py-0.5 text-white"
-              : "text-gray-500"
-          }
+        </button>
+        
+        <button
+          onClick={toggleLang}
+          className={cn(
+            "relative z-10 flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold transition-colors duration-300",
+            lang === "id" ? "text-white" : "text-gray-600"
+          )}
         >
+          <Globe size={13} />
           ID
-        </span>
-      </button>
+        </button>
+      </div>
     </div>
   );
 }
