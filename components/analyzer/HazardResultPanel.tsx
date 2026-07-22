@@ -111,6 +111,36 @@ function getPPEForArea(area: string): PPEItem[] {
   return AREA_PPE_MAP[area] || DEFAULT_PPE;
 }
 
+// Area-specific environmental hazard tracking
+type EnvItem = { label: string; icon: LucideIcon; detectLabel: string };
+
+const AREA_ENV_MAP: Record<string, EnvItem[]> = {
+  spray_decoration: [
+    { label: "Wet Floor", icon: Droplets, detectLabel: "wet_floor" },
+    { label: "Chemical Spill", icon: FlaskConical, detectLabel: "chemical_spill" },
+    { label: "Exposed Cable", icon: Cable, detectLabel: "exposed_cable" },
+  ],
+  central_staging: [
+    { label: "Blocked Walkway", icon: Construction, detectLabel: "blocked_walkway" },
+    { label: "Exposed Cable", icon: Cable, detectLabel: "exposed_cable" },
+  ],
+  assembly: [
+    { label: "Blocked Walkway", icon: Construction, detectLabel: "blocked_walkway" },
+  ],
+};
+
+// Fallback untuk area yang tidak dikenali
+const DEFAULT_ENV: EnvItem[] = [
+  { label: "Wet Floor", icon: Droplets, detectLabel: "wet_floor" },
+  { label: "Blocked Walkway", icon: Construction, detectLabel: "blocked_walkway" },
+  { label: "Exposed Cable", icon: Cable, detectLabel: "exposed_cable" },
+  { label: "Chemical Spill", icon: FlaskConical, detectLabel: "chemical_spill" },
+];
+
+function getEnvForArea(area: string): EnvItem[] {
+  return AREA_ENV_MAP[area] || DEFAULT_ENV;
+}
+
 /**
  * HazardResultPanel — status kelengkapan APD, dihitung
  * dari daftar `detections` hasil backend. Kalau `detections` null (belum
@@ -257,7 +287,7 @@ export function HazardResultPanel({
       </section>
 
       {/* Section 1 — PPE Compliance */}
-      <section>
+      <section className="mb-4">
         <h3 className="mb-2.5 text-xs font-semibold uppercase tracking-wide text-muted">
           PPE Compliance
         </h3>
@@ -282,6 +312,25 @@ export function HazardResultPanel({
           ))}
         </ul>
       </section>
+
+      {/* Section 2 — Environmental Hazards */}
+      {ENV_TRACKED.length > 0 && (
+        <section>
+          <h3 className="mb-2.5 text-xs font-semibold uppercase tracking-wide text-muted">
+            Environmental Hazards
+          </h3>
+          <ul className="space-y-2">
+            {env.map((item) => (
+              <StatusRow
+                key={item.label}
+                icon={item.icon}
+                label={item.label}
+                state={item.detected ? "detected" : "clear"}
+              />
+            ))}
+          </ul>
+        </section>
+      )}
     </div>
   );
 }
