@@ -292,19 +292,19 @@ export function CameraCapture({
     onSummary?.(null);
   }, [clearCanvas, onDetections, onSummary, stopLiveLoop]);
 
-  // Validasi & muat gambar unggahan.
+  // Validasi & muat video unggahan.
   const handleFile = (file: File | undefined) => {
     setUploadError(null);
     setSaveError(null);
     setSaved(false);
     if (!file) return;
-    const okType = ["image/jpeg", "image/jpg", "image/png"].includes(file.type);
+    const okType = ["video/mp4", "video/mov", "video/avi", "video/webm"].includes(file.type);
     if (!okType) {
-      setUploadError("Only JPG, JPEG, or PNG images are allowed.");
+      setUploadError("Only MP4, MOV, AVI, or WEBM videos are allowed.");
       return;
     }
-    if (file.size > 5 * 1024 * 1024) {
-      setUploadError("Image exceeds the 5 MB limit.");
+    if (file.size > 50 * 1024 * 1024) {
+      setUploadError("Video exceeds the 50 MB limit.");
       return;
     }
     setImageFile(file);
@@ -526,7 +526,7 @@ export function CameraCapture({
               active={mode === "upload"}
               onClick={() => switchMode("upload")}
               icon={ImageUp}
-              label="Upload Image"
+              label="Upload Video"
             />
           </div>
         </div>
@@ -632,9 +632,9 @@ export function CameraCapture({
               strokeWidth={1.5}
             />
             <p className="text-sm font-medium text-white/80">
-              Click or drag an image here
+              Click or drag a video here
             </p>
-            <p className="text-xs text-white/40">JPG, JPEG or PNG · max 5 MB</p>
+            <p className="text-xs text-white/40">MP4, MOV or AVI · max 50 MB</p>
           </div>
         )}
 
@@ -653,7 +653,7 @@ export function CameraCapture({
         <input
           ref={fileInputRef}
           type="file"
-          accept="image/jpeg,image/png,image/jpg"
+          accept="video/mp4,video/mov,video/avi,video/webm"
           className="hidden"
           onChange={(e) => handleFile(e.target.files?.[0])}
         />

@@ -50,8 +50,8 @@ const TRANSLATIONS = {
     // Hazard Analyzer
     analyzer: {
       title: "Hazard Analyzer",
-      subtitle: "Upload an image or use the camera to detect workplace hazards.",
-      upload_tab: "Upload Image",
+      subtitle: "Upload a video or use the camera to detect workplace hazards.",
+      upload_tab: "Upload Video",
       camera_tab: "Live Camera",
       location_label: "LOCATION",
       location_placeholder: "e.g. Building B",
@@ -248,8 +248,8 @@ const TRANSLATIONS = {
     analyzer: {
       title: "Analisis Bahaya",
       subtitle:
-        "Upload gambar atau gunakan kamera untuk mendeteksi bahaya kerja.",
-      upload_tab: "Upload Gambar",
+        "Upload video atau gunakan kamera untuk mendeteksi bahaya kerja.",
+      upload_tab: "Upload Video",
       camera_tab: "Kamera Live",
       location_label: "LOKASI",
       location_placeholder: "cth. Gedung B",
