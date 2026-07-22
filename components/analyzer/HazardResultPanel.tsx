@@ -111,44 +111,8 @@ function getPPEForArea(area: string): PPEItem[] {
   return AREA_PPE_MAP[area] || DEFAULT_PPE;
 }
 
-// Area-specific Environmental Hazards/Special Rules
-type EnvItem = { label: string; icon: LucideIcon; detectLabel: string };
-
-const AREA_ENV_MAP: Record<string, EnvItem[]> = {
-  spray_decoration: [
-    { label: "Wet Floor", icon: Droplets, detectLabel: "wet floor" },
-    { label: "Blocked Walkway", icon: Construction, detectLabel: "blocked walkway" },
-    { label: "Exposed Cable", icon: Cable, detectLabel: "exposed cable" },
-    { label: "Chemical Spill", icon: FlaskConical, detectLabel: "chemical spill" },
-  ],
-  central_staging: [
-    { label: "Wet Floor", icon: Droplets, detectLabel: "wet floor" },
-    { label: "Blocked Walkway", icon: Construction, detectLabel: "blocked walkway" },
-    { label: "Exposed Cable", icon: Cable, detectLabel: "exposed cable" },
-    { label: "Chemical Spill", icon: FlaskConical, detectLabel: "chemical spill" },
-  ],
-  assembly: [
-    { label: "Person in Trolley Lane", icon: AlertTriangle, detectLabel: "person lane violation" },
-    { label: "Trolley in Person Lane", icon: Construction, detectLabel: "trolley lane violation" },
-    { label: "Wet Floor", icon: Droplets, detectLabel: "wet floor" },
-    { label: "Blocked Walkway", icon: Construction, detectLabel: "blocked walkway" },
-  ],
-};
-
-// Default environmental hazards
-const DEFAULT_ENV: EnvItem[] = [
-  { label: "Wet Floor", icon: Droplets, detectLabel: "wet floor" },
-  { label: "Blocked Walkway", icon: Construction, detectLabel: "blocked walkway" },
-  { label: "Exposed Cable", icon: Cable, detectLabel: "exposed cable" },
-  { label: "Chemical Spill", icon: FlaskConical, detectLabel: "chemical spill" },
-];
-
-function getEnvForArea(area: string): EnvItem[] {
-  return AREA_ENV_MAP[area] || DEFAULT_ENV;
-}
-
 /**
- * HazardResultPanel — status kelengkapan APD & bahaya lingkungan, dihitung
+ * HazardResultPanel — status kelengkapan APD, dihitung
  * dari daftar `detections` hasil backend. Kalau `detections` null (belum
  * ada analisa) tampilkan placeholder; kalau kosong berarti area aman.
  */
