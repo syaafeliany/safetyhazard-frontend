@@ -18,6 +18,14 @@ import {
 import { cn } from "@/lib/utils";
 import { api } from "@/lib/api";
 import { getClientToken } from "@/lib/auth";
+import {
+  detect,
+  loadModel,
+  EHSS_CLASS_COLOR,
+  COCO_CONTEXT_COLOR,
+  type Detection,
+  type EhssClass,
+} from "@/lib/detection";
 import type {
   DetectionBox,
   DetectionSummary,
@@ -46,57 +54,39 @@ type CamStatus = "idle" | "loading" | "live" | "error";
 const LIVE_INTERVAL_MS = 2000;
 
 /**
- * Gambar kotak deteksi ke kanvas. `boxes` berkoordinat piksel gambar SUMBER
- * berukuran (srcW × srcH); dipetakan ke kanvas (canvas.width × canvas.height)
- * memakai transformasi object-cover (skala max + crop tengah) supaya selaras
- * dengan media yang tampil.
+ * Gambar deteksi client-side ke canvas. Format dari TensorFlow.js: bbox = [x, y, w, h].
+ * Berbeda dengan backend format [x1, y1, x2, y2].
  */
-export function drawDetections(
-  ctx: CanvasRenderingContext2D,
-  canvasW: number,
-  canvasH: number,
-  boxes: DetectionBox[],
-  srcW: number,
-  srcH: number
+function drawClientDetections(
+  canvas: HTMLCanvasElement,
+  source: HTMLVideoElement,
+  detections: Detection[]
 ) {
-  ctx.clearRect(0, 0, canvasW, canvasH);
-  if (!srcW || !srcH || boxes.length === 0) return;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+  
+  canvas.width = source.videoWidth;
+  canvas.height = source.videoHeight;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // object-cover: skala = max, media di-crop di tengah.
-  const scale = Math.max(canvasW / srcW, canvasH / srcH);
-  const dispW = srcW * scale;
-  const dispH = srcH * scale;
-  const offsetX = (canvasW - dispW) / 2;
-  const offsetY = (canvasH - dispH) / 2;
+  for (const d of detections) {
+    const [x, y, w, h] = d.bbox;
+    const cls = d.class as EhssClass;
+    const isEhss = cls in EHSS_CLASS_COLOR;
+    const color = isEhss ? EHSS_CLASS_COLOR[cls] : COCO_CONTEXT_COLOR;
+    const label = `${d.class} ${Math.round(d.score * 100)}%`;
 
-  boxes.forEach((box) => {
-    const [x1, y1, x2, y2] = box.bbox;
-    const x = x1 * scale + offsetX;
-    const y = y1 * scale + offsetY;
-    const w = (x2 - x1) * scale;
-    const h = (y2 - y1) * scale;
-    const color = box.danger ? "#C8102E" : "#22C55E";
-
-    ctx.lineWidth = Math.max(2, canvasW * 0.003);
+    ctx.lineWidth = 3;
     ctx.strokeStyle = color;
     ctx.strokeRect(x, y, w, h);
 
-    const pct = Math.round((box.confidence || 0) * 100);
-    const text = pct > 0 ? `${box.label} ${pct}%` : box.label;
-    const fontSize = Math.max(12, Math.round(canvasW * 0.018));
-    ctx.font = `600 ${fontSize}px system-ui, sans-serif`;
-    const padX = fontSize * 0.5;
-    const labelW = ctx.measureText(text).width + padX * 2;
-    const labelH = fontSize * 1.6;
-    const labelY = y - labelH < 0 ? y : y - labelH;
-
+    ctx.font = "bold 14px system-ui";
+    const tw = ctx.measureText(label).width + 12;
     ctx.fillStyle = color;
-    ctx.fillRect(x, labelY, labelW, labelH);
-
-    ctx.fillStyle = "#FFFFFF";
-    ctx.textBaseline = "middle";
-    ctx.fillText(text, x + padX, labelY + labelH / 2);
-  });
+    ctx.fillRect(x, Math.max(0, y - 22), tw, 22);
+    ctx.fillStyle = "#fff";
+    ctx.fillText(label, x + 6, Math.max(14, y - 6));
+  }
 }
 
 export function CameraCapture({
@@ -142,6 +132,8 @@ export function CameraCapture({
   // ID report terakhir yang tergenerate (dipakai kalau ingin unduh ulang).
   const [generatingPdf, setGeneratingPdf] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
+  const [fps, setFps] = useState(0);
+  const [objectCount, setObjectCount] = useState(0);
 
   // Menyesuaikan resolusi kanvas ke ukuran tampilan, lalu menggambar kotak.
   const renderDetections = useCallback(() => {
@@ -218,28 +210,69 @@ export function CameraCapture({
     [applyDetections, area]
   );
 
-  // Loop deteksi live: tiap tick ambil frame & kirim (skip kalau masih ada
-  // request berjalan supaya tidak menumpuk).
-  const liveTick = useCallback(async () => {
-    if (inFlightRef.current) return;
+  // Loop deteksi live dengan RAF (smooth real-time detection seperti Lovable)
+  const runLiveLoop = useCallback(() => {
     const video = videoRef.current;
-    if (!video || !video.videoWidth) return;
-    inFlightRef.current = true;
-    try {
-      const blob = await captureFrame();
-      if (blob) {
-        await runDetection(blob, video.videoWidth, video.videoHeight);
+    const canvas = canvasRef.current;
+    if (!video || !canvas) return;
+
+    let frames = 0;
+    let t0 = performance.now();
+
+    const tick = async () => {
+      if (!streamRef.current || !videoRef.current) return;
+      
+      try {
+        // Client-side detection
+        const detections = await detect(video);
+        setObjectCount(detections.length);
+        
+        // Draw boxes
+        drawClientDetections(canvas, video, detections);
+        
+        // Convert to DetectionBox format for panel
+        const boxes: DetectionBox[] = detections.map((d) => ({
+          label: d.class,
+          confidence: d.score,
+          danger: d.class === "cell phone" || d.class === "phone",
+          bbox: [d.bbox[0], d.bbox[1], d.bbox[0] + d.bbox[2], d.bbox[1] + d.bbox[3]],
+        }));
+        onDetections?.(boxes);
+        
+        // Simple summary
+        const personCount = detections.filter((d) => d.class === "person").length;
+        const summary: DetectionSummary = {
+          person_count: personCount,
+          helmet_count: 0,
+          vest_count: 0,
+          has_person: personCount > 0,
+          env_hazards: [],
+          risk_score: 0,
+          risk_band: "safe",
+        };
+        onSummary?.(summary);
+      } catch {
+        // Swallow per-frame errors
       }
-    } catch {
-      // Diamkan error per-frame; frame berikutnya coba lagi.
-    } finally {
-      inFlightRef.current = false;
-    }
-  }, [captureFrame, runDetection]);
+
+      // Update FPS
+      frames++;
+      const now = performance.now();
+      if (now - t0 > 1000) {
+        setFps(Math.round((frames * 1000) / (now - t0)));
+        frames = 0;
+        t0 = now;
+      }
+
+      liveTimerRef.current = requestAnimationFrame(() => void tick());
+    };
+    
+    void tick();
+  }, [onDetections, onSummary]);
 
   const stopLiveLoop = useCallback(() => {
     if (liveTimerRef.current) {
-      clearInterval(liveTimerRef.current);
+      cancelAnimationFrame(liveTimerRef.current);
       liveTimerRef.current = null;
     }
   }, []);
@@ -248,8 +281,11 @@ export function CameraCapture({
     setError(null);
     setStatus("loading");
     try {
+      // Load TensorFlow model
+      await loadModel();
+      
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment", width: 1280, height: 720 },
+        video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } },
         audio: false,
       });
       streamRef.current = stream;
@@ -266,11 +302,11 @@ export function CameraCapture({
       setSaveError(null);
       setPdfError(null);
       boxesRef.current = [];
-      // Mulai loop deteksi berkala.
+      setFps(0);
+      setObjectCount(0);
+      // Mulai loop deteksi real-time dengan RAF
       stopLiveLoop();
-      liveTimerRef.current = setInterval(liveTick, LIVE_INTERVAL_MS);
-      // Tick pertama segera (jangan tunggu 2 detik).
-      requestAnimationFrame(() => liveTick());
+      runLiveLoop();
     } catch (err) {
       const message =
         err instanceof DOMException && err.name === "NotAllowedError"
@@ -584,6 +620,14 @@ export function CameraCapture({
           ref={canvasRef}
           className="pointer-events-none absolute inset-0 size-full"
         />
+
+        {/* FPS & object count indicator (live camera) */}
+        {mode === "camera" && isLive && (
+          <div className="absolute left-3 top-3 z-10 flex items-center gap-2 rounded-full bg-black/60 px-3 py-1 text-xs text-white backdrop-blur-sm">
+            <span className="h-2 w-2 animate-pulse rounded-full bg-red-500" />
+            LIVE · {fps} fps · {objectCount} objects
+          </div>
+        )}
 
         {/* Indikator sedang mendeteksi (pratinjau upload) */}
         {mode === "upload" && previewing && (

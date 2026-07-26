@@ -190,20 +190,28 @@ export function HazardResultPanel({
   //   "none"    → tidak ada orang di frame (bukan "aman", cuma tak relevan)
   //   "present" → ada orang & APD terpakai
   //   "missing" → ada orang TAPI APD tidak terdeteksi (pelanggaran)
-  const ppe = PPE_TRACKED.map((p) => ({
-    ...p,
-    state: !hasPerson
+  // Extract confidence dari detections untuk setiap PPE item
+  const ppeWithConfidence = PPE_TRACKED.map((p) => {
+    const state = !hasPerson
       ? ("none" as const)
       : labels.has(p.violationLabel)
       ? ("missing" as const)
-      : ("present" as const),
-  }));
+      : ("present" as const);
+    
+    // Cari confidence dari detections (jika ada)
+    const detection = detections?.find((d) => 
+      d.label.toLowerCase() === p.violationLabel.replace("no ", "")
+    );
+    const confidence = detection?.confidence || 0.9;
+    
+    return { ...p, state, confidence };
+  });
   const env = ENV_TRACKED.map((e) => ({
     ...e,
     detected: labels.has(e.detectLabel),
   }));
 
-  const missingCount = ppe.filter((p) => p.state === "missing").length;
+  const missingCount = ppeWithConfidence.filter((p) => p.state === "missing").length;
   const hazardCount = env.filter((e) => e.detected).length;
   const allClear = missingCount === 0 && hazardCount === 0;
 
@@ -301,31 +309,37 @@ export function HazardResultPanel({
           </p>
         )}
         <ul className="space-y-2">
-          {ppe.map((item) => (
+          {ppeWithConfidence.map((item) => (
             <StatusRow
               key={item.label}
               icon={item.icon}
               label={item.label}
               state={item.state}
               note={item.label === "Helmet" ? helmetNote : vestNote}
+              confidence={item.confidence}
             />
           ))}
         </ul>
       </section>
 
-      {/* Section 2 — Environmental Hazards */}
-      {ENV_TRACKED.length > 0 && (
+      {/* Section 2 — PPE Violations (only show if there are violations) */}
+      {missingCount > 0 && (
         <section>
           <h3 className="mb-2.5 text-xs font-semibold uppercase tracking-wide text-muted">
-            Environmental Hazards
+            PPE Violations
           </h3>
+          <p className="mb-2.5 text-xs text-brand">
+            {missingCount} violation{missingCount === 1 ? "" : "s"} detected
+          </p>
           <ul className="space-y-2">
-            {env.map((item) => (
+            {ppeWithConfidence.filter((p) => p.state === "missing").map((item) => (
               <StatusRow
                 key={item.label}
                 icon={item.icon}
                 label={item.label}
-                state={item.detected ? "detected" : "clear"}
+                state={item.state}
+                note={item.label === "Helmet" ? helmetNote : vestNote}
+                confidence={item.confidence}
               />
             ))}
           </ul>
@@ -339,9 +353,9 @@ export function HazardResultPanel({
  * Baris item dengan ikon di kiri dan lencana status di kanan.
  *
  * State:
- *   present  → hijau "Present"  (APD terpakai)
+ *   present  → hijau "Present 95%"  (APD terpakai dengan confidence)
  *   clear    → hijau "Clear"    (bahaya lingkungan tidak ada)
- *   missing  → merah  "Missing"  (APD tidak terpakai — pelanggaran)
+ *   missing  → merah  "Missing 90%"  (APD tidak terpakai — pelanggaran dengan confidence)
  *   detected → merah  "Detected" (bahaya lingkungan terdeteksi)
  *   none     → abu    "No person" (tidak ada orang → APD tak relevan)
  */
@@ -352,21 +366,25 @@ function StatusRow({
   label,
   state,
   note,
+  confidence,
 }: {
   icon: LucideIcon;
   label: string;
   state: RowState;
   note?: string;
+  confidence?: number;
 }) {
   const isOk = state === "present" || state === "clear";
   const isNone = state === "none";
+  
+  const pct = confidence ? Math.round(confidence * 100) : null;
   const text =
     state === "present"
-      ? "Present"
+      ? pct ? `Present ${pct}%` : "Present"
       : state === "clear"
       ? "Clear"
       : state === "missing"
-      ? "Missing"
+      ? pct ? `Missing ${pct}%` : "Missing"
       : state === "detected"
       ? "Detected"
       : "No person";
