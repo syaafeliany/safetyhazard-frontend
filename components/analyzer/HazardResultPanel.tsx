@@ -102,7 +102,7 @@ const AREA_PPE_MAP: Record<string, PPEItem[]> = {
     { label: "Safety Boots", icon: Shield, violationLabel: "no safety boots" },
   ],
   assembly: [
-    // Assembly area tidak punya mandatory PPE, fokus pada lane violations
+    // Assembly area focuses on lane violations, not PPE
   ],
 };
 
