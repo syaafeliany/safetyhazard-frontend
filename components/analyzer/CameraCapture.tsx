@@ -111,7 +111,7 @@ export function CameraCapture({
   // selalu memakai nilai terbaru tanpa memicu re-render.
   const boxesRef = useRef<DetectionBox[]>([]);
   const srcDimRef = useRef<{ w: number; h: number }>({ w: 0, h: 0 });
-  const liveTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const liveTimerRef = useRef<number | null>(null);
   const inFlightRef = useRef(false);
 
   const [status, setStatus] = useState<CamStatus>("idle");
@@ -135,20 +135,6 @@ export function CameraCapture({
   const [fps, setFps] = useState(0);
   const [objectCount, setObjectCount] = useState(0);
 
-  // Menyesuaikan resolusi kanvas ke ukuran tampilan, lalu menggambar kotak.
-  const renderDetections = useCallback(() => {
-    const canvas = canvasRef.current;
-    const container = containerRef.current;
-    if (!canvas || !container) return;
-    const { width, height } = container.getBoundingClientRect();
-    canvas.width = width;
-    canvas.height = height;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    const { w, h } = srcDimRef.current;
-    drawDetections(ctx, width, height, boxesRef.current, w, h);
-  }, []);
-
   const clearCanvas = useCallback(() => {
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext("2d");
@@ -156,6 +142,7 @@ export function CameraCapture({
   }, []);
 
   // Terapkan hasil deteksi dari backend: simpan, gambar, dan angkat ke parent.
+  // Terapkan hasil deteksi dari backend (untuk upload mode)
   const applyDetections = useCallback(
     (
       boxes: DetectionBox[],
@@ -165,11 +152,10 @@ export function CameraCapture({
     ) => {
       boxesRef.current = boxes;
       srcDimRef.current = { w: srcW, h: srcH };
-      renderDetections();
       onDetections?.(boxes);
       if (summary !== undefined) onSummary?.(summary);
     },
-    [onDetections, onSummary, renderDetections]
+    [onDetections, onSummary]
   );
 
   // Ambil satu frame dari <video> ke blob (di resolusi native video).
@@ -387,7 +373,6 @@ export function CameraCapture({
     if (!video.videoWidth || !video.videoHeight) return;
     
     srcDimRef.current = { w: video.videoWidth, h: video.videoHeight };
-    requestAnimationFrame(() => renderDetections());
     setPreviewing(true);
     
     try {
@@ -535,15 +520,6 @@ export function CameraCapture({
       setGeneratingPdf(false);
     }
   };
-
-  // Redraw saat ukuran window berubah (agar kotak tetap selaras).
-  useEffect(() => {
-    const onResize = () => {
-      if (status === "live" || imageSrc) renderDetections();
-    };
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
-  }, [status, imageSrc, renderDetections]);
 
   // Bersihkan stream & timer saat unmount.
   useEffect(() => {
