@@ -111,6 +111,7 @@ export function CameraCapture({
   const [mode, setMode] = useState<Mode>("camera");
 
   const videoRef = useRef<HTMLVideoElement>(null);
+  const uploadVideoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -341,17 +342,34 @@ export function CameraCapture({
     setMode(next);
   };
 
-  // Saat gambar termuat: catat dimensi native lalu jalankan pratinjau deteksi.
-  const onImageLoad = async () => {
-    const img = document.querySelector<HTMLImageElement>("#analyzer-upload-img");
-    if (!img || !imageFile) return;
-    srcDimRef.current = { w: img.naturalWidth, h: img.naturalHeight };
+  // Saat video termuat: catat dimensi native, ekstrak frame pertama, lalu jalankan pratinjau deteksi.
+  const onVideoLoad = async () => {
+    const video = uploadVideoRef.current;
+    if (!video || !imageFile) return;
+    
+    // Tunggu sampai video punya dimensi
+    if (!video.videoWidth || !video.videoHeight) return;
+    
+    srcDimRef.current = { w: video.videoWidth, h: video.videoHeight };
     requestAnimationFrame(() => renderDetections());
     setPreviewing(true);
+    
     try {
-      await runDetection(imageFile, img.naturalWidth, img.naturalHeight);
+      // Ekstrak frame pertama sebagai blob untuk detection
+      const off = document.createElement("canvas");
+      off.width = video.videoWidth;
+      off.height = video.videoHeight;
+      const ctx = off.getContext("2d");
+      if (ctx) {
+        ctx.drawImage(video, 0, 0, off.width, off.height);
+        off.toBlob(async (blob) => {
+          if (blob) {
+            await runDetection(blob, video.videoWidth, video.videoHeight);
+          }
+        }, "image/jpeg", 0.8);
+      }
     } catch {
-      // Pratinjau gagal → biarkan gambar tanpa kotak; user tetap bisa Save.
+      // Pratinjau gagal → biarkan video tanpa kotak; user tetap bisa Save.
     } finally {
       setPreviewing(false);
     }
@@ -504,10 +522,10 @@ export function CameraCapture({
   return (
     <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
       {/* Header + tab mode */}
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-sm font-semibold text-foreground">
-            {mode === "camera" ? "Live Camera Feed" : "Image Analysis"}
+            {mode === "camera" ? "Live Camera Feed" : "Video Analysis"}
           </h2>
           <p className="text-xs text-muted">
             Real-time PPE &amp; hazard detection
@@ -547,14 +565,16 @@ export function CameraCapture({
           />
         )}
 
-        {/* Gambar unggahan (mode upload) — ukuran wadah yang sama persis */}
+        {/* Video unggahan (mode upload) — ukuran wadah yang sama persis */}
         {mode === "upload" && imageSrc && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            id="analyzer-upload-img"
+          <video
+            ref={uploadVideoRef}
             src={imageSrc}
-            alt="Uploaded for analysis"
-            onLoad={onImageLoad}
+            onLoadedMetadata={onVideoLoad}
+            playsInline
+            muted
+            loop
+            autoPlay
             className="absolute inset-0 size-full object-cover"
           />
         )}
@@ -638,12 +658,12 @@ export function CameraCapture({
           </div>
         )}
 
-        {/* Tombol hapus gambar */}
+        {/* Tombol hapus video */}
         {mode === "upload" && imageSrc && (
           <button
             type="button"
             onClick={clearImage}
-            aria-label="Remove image"
+            aria-label="Remove video"
             className="absolute right-3 top-3 z-10 flex size-8 items-center justify-center rounded-lg bg-black/50 text-white backdrop-blur-sm transition-colors hover:bg-black/70"
           >
             <X className="size-4" />
@@ -780,7 +800,7 @@ export function CameraCapture({
               className="flex items-center gap-2 rounded-lg border border-border bg-background px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-foreground/5"
             >
               <ImageUp className="size-4" />
-              {imageSrc ? "Replace Image" : "Choose Image"}
+              {imageSrc ? "Replace Video" : "Choose Video"}
             </button>
             <button
               type="button"
