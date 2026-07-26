@@ -225,7 +225,7 @@ export function CameraCapture({
         }));
         onDetections?.(boxes);
         
-        // Simple summary
+        // Simple summary - client-side detection cannot detect PPE items
         const personCount = detections.filter((d) => d.class === "person").length;
         const summary: DetectionSummary = {
           person_count: personCount,
@@ -235,6 +235,7 @@ export function CameraCapture({
           env_hazards: [],
           risk_score: 0,
           risk_band: "safe",
+          client_side_detection: true, // Flag untuk HazardResultPanel
         };
         onSummary?.(summary);
       } catch {

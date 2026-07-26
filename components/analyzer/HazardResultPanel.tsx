@@ -48,6 +48,8 @@ export interface DetectionSummary {
   // Skor risiko agregat + band (safe/low/moderate/high/critical).
   risk_score?: number;
   risk_band?: string;
+  // Flag untuk live camera client-side detection (COCO-SSD tidak bisa detect PPE)
+  client_side_detection?: boolean;
 }
 
 // Band skor risiko → warna & label tampilan.
@@ -299,27 +301,40 @@ export function HazardResultPanel({
         <h3 className="mb-2.5 text-xs font-semibold uppercase tracking-wide text-muted">
           PPE Compliance
         </h3>
-        {!hasPerson ? (
-          <p className="mb-2.5 text-xs text-muted">
-            No person detected in frame.
-          </p>
+        {summary?.client_side_detection ? (
+          <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 p-3">
+            <p className="mb-2 text-xs font-semibold text-amber-600 dark:text-amber-500">
+              ⚠️ Live Preview: Basic Object Detection Only
+            </p>
+            <p className="text-xs text-muted">
+              PPE detection requires backend analysis. Use <strong>"Capture & Analyze"</strong> button below for accurate PPE compliance assessment.
+            </p>
+          </div>
         ) : (
-          <p className="mb-2.5 text-xs text-muted">
-            {workers} worker{workers === 1 ? "" : "s"} detected in frame.
-          </p>
+          <>
+            {!hasPerson ? (
+              <p className="mb-2.5 text-xs text-muted">
+                No person detected in frame.
+              </p>
+            ) : (
+              <p className="mb-2.5 text-xs text-muted">
+                {workers} worker{workers === 1 ? "" : "s"} detected in frame.
+              </p>
+            )}
+            <ul className="space-y-2">
+              {ppeWithConfidence.map((item) => (
+                <StatusRow
+                  key={item.label}
+                  icon={item.icon}
+                  label={item.label}
+                  state={item.state}
+                  note={item.label === "Helmet" ? helmetNote : vestNote}
+                  confidence={item.confidence}
+                />
+              ))}
+            </ul>
+          </>
         )}
-        <ul className="space-y-2">
-          {ppeWithConfidence.map((item) => (
-            <StatusRow
-              key={item.label}
-              icon={item.icon}
-              label={item.label}
-              state={item.state}
-              note={item.label === "Helmet" ? helmetNote : vestNote}
-              confidence={item.confidence}
-            />
-          ))}
-        </ul>
       </section>
 
       {/* Section 2 — PPE Violations (only show if there are violations) */}
