@@ -25,8 +25,8 @@ export function VideoAnalyzer({
   onSummary,
   area,
 }: {
-  onDetections?: (d: DetectionBox[]) => void;
-  onSummary?: (s: DetectionSummary) => void;
+  onDetections?: (d: DetectionBox[] | undefined) => void;
+  onSummary?: (s: DetectionSummary | undefined) => void;
   area: string;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -212,8 +212,8 @@ export function VideoAnalyzer({
     setInspectionId(null);
     setIsPlaying(false);
     if (videoRef.current) videoRef.current.pause();
-    onDetections?.(null);
-    onSummary?.(null);
+    onDetections?.([]);
+    onSummary?.(undefined);
   };
 
   // Cleanup on unmount
