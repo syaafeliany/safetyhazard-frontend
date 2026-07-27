@@ -9,7 +9,7 @@ import type { DetectionBox, DetectionSummary } from "./HazardResultPanel";
 type Detection = {
   label: string;
   confidence_score: number;
-  bbox: { x: number; y: number; width: number; height: number };
+  bbox: { x1: number; y1: number; x2: number; y2: number; width: number; height: number };
   is_violation: boolean;
 };
 
@@ -59,23 +59,23 @@ export function VideoAnalyzer({
 
     detections.forEach((det) => {
       const color = det.is_violation ? "#EF4444" : "#22C55E"; // Red or Green
-      const { x, y, width, height } = det.bbox;
+      const { x1, y1, width, height } = det.bbox;
 
       // Draw rectangle
       ctx.strokeStyle = color;
       ctx.lineWidth = 3;
-      ctx.strokeRect(x, y, width, height);
+      ctx.strokeRect(x1, y1, width, height);
 
       // Draw label background
       const label = `${det.label} ${Math.round(det.confidence_score * 100)}%`;
       ctx.font = "bold 14px Inter, sans-serif";
       const textWidth = ctx.measureText(label).width;
       ctx.fillStyle = color;
-      ctx.fillRect(x, y - 26, textWidth + 12, 26);
+      ctx.fillRect(x1, y1 - 26, textWidth + 12, 26);
 
       // Draw label text
       ctx.fillStyle = "white";
-      ctx.fillText(label, x + 6, y - 8);
+      ctx.fillText(label, x1 + 6, y1 - 8);
     });
   }, []);
 
@@ -117,7 +117,7 @@ export function VideoAnalyzer({
           label: d.label,
           confidence: d.confidence_score,
           danger: d.is_violation,
-          bbox: [d.bbox.x, d.bbox.y, d.bbox.x + d.bbox.width, d.bbox.y + d.bbox.height],
+          bbox: [d.bbox.x1, d.bbox.y1, d.bbox.x2, d.bbox.y2],
         }));
 
         onDetections?.(boxes);
