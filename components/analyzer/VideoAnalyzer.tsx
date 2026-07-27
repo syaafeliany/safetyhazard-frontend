@@ -14,7 +14,6 @@ const AREAS = [
   { value: "spray_decoration",  label: "Spray/Decoration Area",  ppe: "Safety Glasses, Safety Gloves, Apron" },
   { value: "central_staging",   label: "Central Staging Area",   ppe: "Safety Helmet, Safety Boots" },
   { value: "assembly",          label: "Assembly Area",          ppe: "Trolley & pedestrian lane compliance" },
-  { value: "general",           label: "General Area",           ppe: "No phone while walking" },
 ] as const;
 
 type Detection = {

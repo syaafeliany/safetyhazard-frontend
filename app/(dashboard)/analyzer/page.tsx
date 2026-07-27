@@ -59,6 +59,7 @@ export default function AnalyzerPage() {
           ) : (
             <VideoAnalyzer
               area={area}
+              onAreaChange={setArea}
               onDetections={(d) => setDetections(d ?? null)}
               onSummary={(s) => setSummary(s ?? null)}
             />
