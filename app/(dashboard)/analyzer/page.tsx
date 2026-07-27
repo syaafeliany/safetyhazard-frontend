@@ -72,6 +72,8 @@ export default function AnalyzerPage() {
           ) : (
             <VideoAnalyzer 
               area={area}
+              onDetections={setDetections}
+              onSummary={setSummary}
             />
           )}
         </div>

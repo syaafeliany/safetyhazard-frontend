@@ -148,14 +148,46 @@ export function VideoAnalyzer({
 
     setError(null);
     setVideoFile(file);
-    setVideoSrc(URL.createObjectURL(file));
+    const videoUrl = URL.createObjectURL(file);
+    setVideoSrc(videoUrl);
 
-    // Create inspection
+    // Extract first frame from video to create inspection (don't upload whole video)
     try {
+      // Load video temporarily to extract first frame
+      const tempVideo = document.createElement("video");
+      tempVideo.src = videoUrl;
+      tempVideo.muted = true;
+      
+      await new Promise<void>((resolve, reject) => {
+        tempVideo.onloadedmetadata = () => resolve();
+        tempVideo.onerror = () => reject(new Error("Failed to load video"));
+      });
+      
+      // Seek to first frame
+      tempVideo.currentTime = 0;
+      await new Promise<void>((resolve) => {
+        tempVideo.onseeked = () => resolve();
+      });
+      
+      // Extract frame as JPEG blob
+      const canvas = document.createElement("canvas");
+      canvas.width = tempVideo.videoWidth;
+      canvas.height = tempVideo.videoHeight;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("Canvas context unavailable");
+      
+      ctx.drawImage(tempVideo, 0, 0);
+      const frameBlob = await new Promise<Blob | null>((resolve) => {
+        canvas.toBlob((b) => resolve(b), "image/jpeg", 0.85);
+      });
+      
+      if (!frameBlob) throw new Error("Failed to extract frame");
+
+      // Create inspection with first frame only (JPEG, not video)
       const formData = new FormData();
       formData.append("location", "Video Analysis");
       formData.append("area", area);
-      formData.append("image", file);
+      formData.append("image", frameBlob, "first_frame.jpg");
 
       const result = await api.post<{ inspection_id: string }>(
         "/inspections/",
@@ -164,9 +196,11 @@ export function VideoAnalyzer({
 
       if (result.ok && result.data) {
         setInspectionId(result.data.inspection_id);
+      } else {
+        throw new Error("Failed to create inspection");
       }
     } catch (err) {
-      setError("Failed to create inspection");
+      setError("Failed to create inspection: " + (err instanceof Error ? err.message : "Unknown error"));
     }
   };
 

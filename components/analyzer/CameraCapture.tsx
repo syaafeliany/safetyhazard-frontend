@@ -523,59 +523,29 @@ export function CameraCapture({
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-sm font-semibold text-foreground">
-            {mode === "camera" ? "Live Camera Feed" : "Video Analysis"}
+            Live Camera Feed
           </h2>
           <p className="text-xs text-muted">
             Real-time PPE &amp; hazard detection
           </p>
         </div>
         <div className="flex items-center gap-3">
-          {mode === "camera" && <StatusPill status={status} />}
-          <div className="flex rounded-lg bg-foreground/5 p-1">
-            <TabButton
-              active={mode === "camera"}
-              onClick={() => switchMode("camera")}
-              icon={Video}
-              label="Live Camera"
-            />
-            <TabButton
-              active={mode === "upload"}
-              onClick={() => switchMode("upload")}
-              icon={ImageUp}
-              label="Upload Video"
-            />
-          </div>
+          <StatusPill status={status} />
         </div>
       </div>
 
-      {/* Wadah 16:9 — video/gambar + canvas overlay ditumpuk */}
+      {/* Wadah 16:9 — video + canvas overlay ditumpuk */}
       <div
         ref={containerRef}
         className="relative aspect-video w-full overflow-hidden rounded-lg bg-black"
       >
         {/* Video (mode kamera) */}
-        {mode === "camera" && (
-          <video
-            ref={videoRef}
-            playsInline
-            muted
-            className="absolute inset-0 size-full object-cover"
-          />
-        )}
-
-        {/* Video unggahan (mode upload) — ukuran wadah yang sama persis */}
-        {mode === "upload" && imageSrc && (
-          <video
-            ref={uploadVideoRef}
-            src={imageSrc}
-            onLoadedMetadata={onVideoLoad}
-            playsInline
-            muted
-            loop
-            autoPlay
-            className="absolute inset-0 size-full object-cover"
-          />
-        )}
+        <video
+          ref={videoRef}
+          playsInline
+          muted
+          className="absolute inset-0 size-full object-cover"
+        />
 
         {/* Canvas transparan untuk bounding box */}
         <canvas
@@ -584,23 +554,15 @@ export function CameraCapture({
         />
 
         {/* FPS & object count indicator (live camera) */}
-        {mode === "camera" && isLive && (
+        {isLive && (
           <div className="absolute left-3 top-3 z-10 flex items-center gap-2 rounded-full bg-black/60 px-3 py-1 text-xs text-white backdrop-blur-sm">
             <span className="h-2 w-2 animate-pulse rounded-full bg-red-500" />
             LIVE · {fps} fps · {objectCount} objects
           </div>
         )}
 
-        {/* Indikator sedang mendeteksi (pratinjau upload) */}
-        {mode === "upload" && previewing && (
-          <div className="absolute left-3 top-3 z-10 flex items-center gap-1.5 rounded-full bg-black/60 px-2.5 py-1 text-xs font-medium text-white backdrop-blur-sm">
-            <ScanLine className="size-3.5 animate-pulse" />
-            Detecting...
-          </div>
-        )}
-
         {/* Placeholder mode kamera (mati/error) */}
-        {mode === "camera" && !isLive && status !== "loading" && (
+        {!isLive && status !== "loading" && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-center">
             {status === "error" ? (
               <>
@@ -617,80 +579,12 @@ export function CameraCapture({
         )}
 
         {/* Spinner saat menyiapkan kamera */}
-        {mode === "camera" && status === "loading" && (
+        {status === "loading" && (
           <div className="absolute inset-0 flex items-center justify-center">
             <Loader2 className="size-8 animate-spin text-white/70" />
           </div>
         )}
-
-        {/* Drop-zone mode upload (belum ada gambar) */}
-        {mode === "upload" && !imageSrc && (
-          <div
-            role="button"
-            tabIndex={0}
-            onClick={() => fileInputRef.current?.click()}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ")
-                fileInputRef.current?.click();
-            }}
-            onDragOver={(e) => {
-              e.preventDefault();
-              setDragging(true);
-            }}
-            onDragLeave={() => setDragging(false)}
-            onDrop={(e) => {
-              e.preventDefault();
-              setDragging(false);
-              handleFile(e.dataTransfer.files?.[0]);
-            }}
-            className={cn(
-              "absolute inset-0 m-4 flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed text-center transition-colors",
-              dragging
-                ? "border-brand bg-brand/10"
-                : "border-white/25 hover:border-white/50"
-            )}
-          >
-            <UploadCloud
-              className={cn(
-                "size-9",
-                dragging ? "text-brand" : "text-white/50"
-              )}
-              strokeWidth={1.5}
-            />
-            <p className="text-sm font-medium text-white/80">
-              Click or drag a video here
-            </p>
-            <p className="text-xs text-white/40">MP4, MOV or AVI · max 50 MB</p>
-          </div>
-        )}
-
-        {/* Tombol hapus video */}
-        {mode === "upload" && imageSrc && (
-          <button
-            type="button"
-            onClick={clearImage}
-            aria-label="Remove video"
-            className="absolute right-3 top-3 z-10 flex size-8 items-center justify-center rounded-lg bg-black/50 text-white backdrop-blur-sm transition-colors hover:bg-black/70"
-          >
-            <X className="size-4" />
-          </button>
-        )}
-
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="video/mp4,video/mov,video/avi,video/webm"
-          className="hidden"
-          onChange={(e) => handleFile(e.target.files?.[0])}
-        />
       </div>
-
-      {/* Pesan error upload */}
-      {mode === "upload" && uploadError && (
-        <p className="mt-3 rounded-lg bg-brand/10 px-3 py-2 text-sm text-brand">
-          {uploadError}
-        </p>
-      )}
 
       {/* Form simpan & analisa. Ditampilkan untuk upload (gambar dipilih)
           MAUPUN live camera (kamera menyala) — hanya butuh Area untuk
