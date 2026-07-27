@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { CameraCapture } from "@/components/analyzer/CameraCapture";
+import { VideoAnalyzer } from "@/components/analyzer/VideoAnalyzer";
 import {
   HazardResultPanel,
   type DetectionBox,
@@ -24,6 +25,8 @@ export default function AnalyzerPage() {
   const [summary, setSummary] = useState<DetectionSummary | null>(null);
   // Area yang dipilih untuk menentukan PPE requirements
   const [area, setArea] = useState<string>("spray_decoration");
+  // Tab switcher: "live" atau "video"
+  const [activeTab, setActiveTab] = useState<"live" | "video">("live");
 
   return (
     <div>
@@ -34,13 +37,43 @@ export default function AnalyzerPage() {
         </p>
       </div>
 
+      {/* Tab Switcher */}
+      <div className="mb-4 flex gap-2 border-b border-border">
+        <button
+          onClick={() => setActiveTab("live")}
+          className={`px-4 py-2 font-medium transition-colors ${
+            activeTab === "live"
+              ? "border-b-2 border-primary text-primary"
+              : "text-muted hover:text-foreground"
+          }`}
+        >
+          Live Camera
+        </button>
+        <button
+          onClick={() => setActiveTab("video")}
+          className={`px-4 py-2 font-medium transition-colors ${
+            activeTab === "video"
+              ? "border-b-2 border-primary text-primary"
+              : "text-muted hover:text-foreground"
+          }`}
+        >
+          Upload Video
+        </button>
+      </div>
+
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
         <div className="lg:col-span-8">
-          <CameraCapture 
-            onDetections={setDetections} 
-            onSummary={setSummary}
-            onAreaChange={setArea}
-          />
+          {activeTab === "live" ? (
+            <CameraCapture 
+              onDetections={setDetections} 
+              onSummary={setSummary}
+              onAreaChange={setArea}
+            />
+          ) : (
+            <VideoAnalyzer 
+              area={area}
+            />
+          )}
         </div>
         <div className="lg:col-span-4">
           <HazardResultPanel 

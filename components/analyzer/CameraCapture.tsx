@@ -18,14 +18,7 @@ import {
 import { cn } from "@/lib/utils";
 import { api } from "@/lib/api";
 import { getClientToken } from "@/lib/auth";
-import {
-  detect,
-  loadModel,
-  EHSS_CLASS_COLOR,
-  COCO_CONTEXT_COLOR,
-  type Detection,
-  type EhssClass,
-} from "@/lib/detection";
+
 import type {
   DetectionBox,
   DetectionSummary,
@@ -54,13 +47,12 @@ type CamStatus = "idle" | "loading" | "live" | "error";
 const LIVE_INTERVAL_MS = 2000;
 
 /**
- * Gambar deteksi client-side ke canvas. Format dari TensorFlow.js: bbox = [x, y, w, h].
- * Berbeda dengan backend format [x1, y1, x2, y2].
+ * Gambar deteksi backend ke canvas. Format dari backend: bbox = [x1, y1, x2, y2].
  */
-function drawClientDetections(
+function drawBackendDetections(
   canvas: HTMLCanvasElement,
   source: HTMLVideoElement,
-  detections: Detection[]
+  detections: DetectionBox[]
 ) {
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
@@ -70,22 +62,22 @@ function drawClientDetections(
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   for (const d of detections) {
-    const [x, y, w, h] = d.bbox;
-    const cls = d.class as EhssClass;
-    const isEhss = cls in EHSS_CLASS_COLOR;
-    const color = isEhss ? EHSS_CLASS_COLOR[cls] : COCO_CONTEXT_COLOR;
-    const label = `${d.class} ${Math.round(d.score * 100)}%`;
+    const [x1, y1, x2, y2] = d.bbox;
+    const w = x2 - x1;
+    const h = y2 - y1;
+    const color = d.danger ? "#ef4444" : "#22c55e";
+    const label = `${d.label} ${Math.round(d.confidence * 100)}%`;
 
     ctx.lineWidth = 3;
     ctx.strokeStyle = color;
-    ctx.strokeRect(x, y, w, h);
+    ctx.strokeRect(x1, y1, w, h);
 
     ctx.font = "bold 14px system-ui";
     const tw = ctx.measureText(label).width + 12;
     ctx.fillStyle = color;
-    ctx.fillRect(x, Math.max(0, y - 22), tw, 22);
+    ctx.fillRect(x1, Math.max(0, y1 - 22), tw, 22);
     ctx.fillStyle = "#fff";
-    ctx.fillText(label, x + 6, Math.max(14, y - 6));
+    ctx.fillText(label, x1 + 6, Math.max(14, y1 - 6));
   }
 }
 
@@ -196,7 +188,7 @@ export function CameraCapture({
     [applyDetections, area]
   );
 
-  // Loop deteksi live dengan RAF (smooth real-time detection seperti Lovable)
+  // Loop deteksi live dengan backend YOLO (kirim frame setiap ~2 detik)
   const runLiveLoop = useCallback(() => {
     const video = videoRef.current;
     const canvas = canvasRef.current;
@@ -204,47 +196,43 @@ export function CameraCapture({
 
     let frames = 0;
     let t0 = performance.now();
+    let lastDetectionTime = 0;
 
     const tick = async () => {
       if (!streamRef.current || !videoRef.current) return;
       
-      try {
-        // Client-side detection
-        const detections = await detect(video);
-        setObjectCount(detections.length);
+      const now = performance.now();
+      
+      // Kirim frame ke backend setiap LIVE_INTERVAL_MS (2 detik)
+      if (now - lastDetectionTime >= LIVE_INTERVAL_MS && !inFlightRef.current) {
+        lastDetectionTime = now;
+        inFlightRef.current = true;
         
-        // Draw boxes
-        drawClientDetections(canvas, video, detections);
-        
-        // Convert to DetectionBox format for panel
-        const boxes: DetectionBox[] = detections.map((d) => ({
-          label: d.class,
-          confidence: d.score,
-          danger: d.class === "cell phone" || d.class === "phone",
-          bbox: [d.bbox[0], d.bbox[1], d.bbox[0] + d.bbox[2], d.bbox[1] + d.bbox[3]],
-        }));
-        onDetections?.(boxes);
-        
-        // Simple summary - client-side detection cannot detect PPE items
-        const personCount = detections.filter((d) => d.class === "person").length;
-        const summary: DetectionSummary = {
-          person_count: personCount,
-          helmet_count: 0,
-          vest_count: 0,
-          has_person: personCount > 0,
-          env_hazards: [],
-          risk_score: 0,
-          risk_band: "safe",
-          client_side_detection: true, // Flag untuk HazardResultPanel
-        };
-        onSummary?.(summary);
-      } catch {
-        // Swallow per-frame errors
+        try {
+          const blob = await captureFrame();
+          if (blob && video.videoWidth && video.videoHeight) {
+            await runDetection(blob, video.videoWidth, video.videoHeight);
+            
+            // Draw boxes from latest detection
+            if (boxesRef.current.length > 0) {
+              drawBackendDetections(canvas, video, boxesRef.current);
+              setObjectCount(boxesRef.current.length);
+            } else {
+              // Clear canvas if no detections
+              const ctx = canvas.getContext("2d");
+              if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+              setObjectCount(0);
+            }
+          }
+        } catch {
+          // Swallow per-frame errors
+        } finally {
+          inFlightRef.current = false;
+        }
       }
 
       // Update FPS
       frames++;
-      const now = performance.now();
       if (now - t0 > 1000) {
         setFps(Math.round((frames * 1000) / (now - t0)));
         frames = 0;
@@ -255,7 +243,7 @@ export function CameraCapture({
     };
     
     void tick();
-  }, [onDetections, onSummary]);
+  }, [onDetections, onSummary, captureFrame, runDetection]);
 
   const stopLiveLoop = useCallback(() => {
     if (liveTimerRef.current) {
@@ -268,9 +256,6 @@ export function CameraCapture({
     setError(null);
     setStatus("loading");
     try {
-      // Load TensorFlow model
-      await loadModel();
-      
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } },
         audio: false,
@@ -291,7 +276,7 @@ export function CameraCapture({
       boxesRef.current = [];
       setFps(0);
       setObjectCount(0);
-      // Mulai loop deteksi real-time dengan RAF
+      // Mulai loop deteksi real-time dengan backend YOLO
       stopLiveLoop();
       runLiveLoop();
     } catch (err) {
