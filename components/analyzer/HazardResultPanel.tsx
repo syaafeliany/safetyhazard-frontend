@@ -38,12 +38,16 @@ export interface DetectionBox {
  */
 export interface DetectionSummary {
   person_count: number;
-  helmet_count: number;
-  vest_count: number;
   has_person: boolean;
-  // Berapa orang yang APD-nya tidak terpakai (inferensi spasial per-orang).
+  // Berapa orang yang APD-nya tidak terpakai (inferensi spasial per-orang),
+  // per jenis PPE — cocok dengan label yang benar-benar dipakai backend
+  // (no_safety_glasses / no_safety_gloves / no_apron / no_safety_helmet /
+  // no_safety_boots), BUKAN "helmet"/"vest" generik yang tidak pernah dipakai.
+  workers_missing_glasses?: number;
+  workers_missing_gloves?: number;
+  workers_missing_apron?: number;
   workers_missing_helmet?: number;
-  workers_missing_vest?: number;
+  workers_missing_boots?: number;
   env_hazards: string[];
   // Skor risiko agregat + band (safe/low/moderate/high/critical).
   risk_score?: number;
@@ -88,18 +92,36 @@ const RISK_BAND_META: Record<
 // ini dianggap "penuh"). Sekadar visual; band tetap sumber kebenaran.
 const RISK_BAR_MAX = 30;
 
-// Area-specific PPE requirements
-type PPEItem = { label: string; icon: LucideIcon; violationLabel: string };
+/**
+ * Normalisasi label untuk pencocokan yang aman terhadap variasi format.
+ * Backend/canvas kadang mengirim "no_apron" (underscore, raw yolo_label),
+ * kadang "no apron" (spasi, hasil .replace("_", " ") di build_preview_boxes).
+ * Tanpa normalisasi ini, pencocokan `labels.has(violationLabel)` gagal diam-diam
+ * dan panel salah lapor "Present" padahal box merah jelas menunjukkan pelanggaran.
+ */
+function normalizeLabel(label: string): string {
+  return label.toLowerCase().replace(/_/g, " ").trim();
+}
+
+// Area-specific PPE requirements. `summaryKey` menghubungkan item ini ke
+// field count di DetectionSummary supaya note "x of y workers" akurat per-item
+// (bukan digeneralisir ke helmet/vest seperti sebelumnya).
+type PPEItem = {
+  label: string;
+  icon: LucideIcon;
+  violationLabel: string;
+  summaryKey: keyof DetectionSummary;
+};
 
 const AREA_PPE_MAP: Record<string, PPEItem[]> = {
   spray_decoration: [
-    { label: "Safety Glasses", icon: Glasses, violationLabel: "no safety glasses" },
-    { label: "Safety Gloves", icon: Hand, violationLabel: "no safety gloves" },
-    { label: "Apron", icon: ShirtIcon, violationLabel: "no apron" },
+    { label: "Safety Glasses", icon: Glasses, violationLabel: "no safety glasses", summaryKey: "workers_missing_glasses" },
+    { label: "Safety Gloves", icon: Hand, violationLabel: "no safety gloves", summaryKey: "workers_missing_gloves" },
+    { label: "Apron", icon: ShirtIcon, violationLabel: "no apron", summaryKey: "workers_missing_apron" },
   ],
   central_staging: [
-    { label: "Safety Helmet", icon: HardHat, violationLabel: "no safety helmet" },
-    { label: "Safety Boots", icon: Shield, violationLabel: "no safety boots" },
+    { label: "Safety Helmet", icon: HardHat, violationLabel: "no safety helmet", summaryKey: "workers_missing_helmet" },
+    { label: "Safety Boots", icon: Shield, violationLabel: "no safety boots", summaryKey: "workers_missing_boots" },
   ],
   assembly: [
     // Assembly area focuses on lane violations, not PPE
@@ -118,25 +140,25 @@ type EnvItem = { label: string; icon: LucideIcon; detectLabel: string };
 
 const AREA_ENV_MAP: Record<string, EnvItem[]> = {
   spray_decoration: [
-    { label: "Wet Floor", icon: Droplets, detectLabel: "wet_floor" },
-    { label: "Chemical Spill", icon: FlaskConical, detectLabel: "chemical_spill" },
-    { label: "Exposed Cable", icon: Cable, detectLabel: "exposed_cable" },
+    { label: "Wet Floor", icon: Droplets, detectLabel: "wet floor" },
+    { label: "Chemical Spill", icon: FlaskConical, detectLabel: "chemical spill" },
+    { label: "Exposed Cable", icon: Cable, detectLabel: "exposed cable" },
   ],
   central_staging: [
-    { label: "Blocked Walkway", icon: Construction, detectLabel: "blocked_walkway" },
-    { label: "Exposed Cable", icon: Cable, detectLabel: "exposed_cable" },
+    { label: "Blocked Walkway", icon: Construction, detectLabel: "blocked walkway" },
+    { label: "Exposed Cable", icon: Cable, detectLabel: "exposed cable" },
   ],
   assembly: [
-    { label: "Blocked Walkway", icon: Construction, detectLabel: "blocked_walkway" },
+    { label: "Blocked Walkway", icon: Construction, detectLabel: "blocked walkway" },
   ],
 };
 
 // Fallback untuk area yang tidak dikenali
 const DEFAULT_ENV: EnvItem[] = [
-  { label: "Wet Floor", icon: Droplets, detectLabel: "wet_floor" },
-  { label: "Blocked Walkway", icon: Construction, detectLabel: "blocked_walkway" },
-  { label: "Exposed Cable", icon: Cable, detectLabel: "exposed_cable" },
-  { label: "Chemical Spill", icon: FlaskConical, detectLabel: "chemical_spill" },
+  { label: "Wet Floor", icon: Droplets, detectLabel: "wet floor" },
+  { label: "Blocked Walkway", icon: Construction, detectLabel: "blocked walkway" },
+  { label: "Exposed Cable", icon: Cable, detectLabel: "exposed cable" },
+  { label: "Chemical Spill", icon: FlaskConical, detectLabel: "chemical spill" },
 ];
 
 function getEnvForArea(area: string): EnvItem[] {
@@ -179,49 +201,56 @@ export function HazardResultPanel({
   // Get environmental hazards for selected area
   const ENV_TRACKED = getEnvForArea(area);
 
-  const labels = new Set(detections.map((d) => d.label.toLowerCase()));
+  // Normalisasi SEMUA label yang masuk sebelum dibandingkan — lihat komentar
+  // di normalizeLabel(). Ini yang memperbaiki bug "Present" padahal box
+  // merah nunjukin no_apron/no_safety_glasses/dst.
+  const labels = new Set(detections.map((d) => normalizeLabel(d.label)));
 
   // Ada orang di frame? Utamakan summary dari backend; fallback: anggap ada
   // orang kalau ada pelanggaran PPE yang terdeteksi (pelanggaran hanya muncul
   // saat person terdeteksi).
   const hasPerson =
     summary?.has_person ??
-    PPE_TRACKED.some((p) => labels.has(p.violationLabel));
+    PPE_TRACKED.some((p) => labels.has(normalizeLabel(p.violationLabel)));
 
   // PPE tiga status:
   //   "none"    → tidak ada orang di frame (bukan "aman", cuma tak relevan)
   //   "present" → ada orang & APD terpakai
   //   "missing" → ada orang TAPI APD tidak terdeteksi (pelanggaran)
-  // Extract confidence dari detections untuk setiap PPE item
   const ppeWithConfidence = PPE_TRACKED.map((p) => {
+    const violationHit = labels.has(normalizeLabel(p.violationLabel));
     const state = !hasPerson
       ? ("none" as const)
-      : labels.has(p.violationLabel)
+      : violationHit
       ? ("missing" as const)
       : ("present" as const);
-    
-    // Cari confidence dari detections (jika ada)
-    const detection = detections?.find((d) => 
-      d.label.toLowerCase() === p.violationLabel.replace("no ", "")
+
+    // Cari confidence dari box yang match label ini (violation ATAU item
+    // itu sendiri), dinormalisasi juga supaya tidak gagal karena underscore.
+    const wantedLabel = violationHit
+      ? p.violationLabel
+      : p.label;
+    const detection = detections?.find(
+      (d) => normalizeLabel(d.label) === normalizeLabel(wantedLabel)
     );
-    const confidence = detection?.confidence || 0.9;
-    
-    return { ...p, state, confidence };
+    const confidence = detection?.confidence ?? 0.9;
+
+    // Berapa pekerja yang kena pelanggaran ini secara spesifik (dari summary
+    // backend), bukan digeneralisir ke helmet/vest.
+    const missingWorkers = (summary?.[p.summaryKey] as number | undefined) ?? 0;
+
+    return { ...p, state, confidence, missingWorkers };
   });
   const env = ENV_TRACKED.map((e) => ({
     ...e,
-    detected: labels.has(e.detectLabel),
+    detected: labels.has(normalizeLabel(e.detectLabel)),
   }));
 
   const missingCount = ppeWithConfidence.filter((p) => p.state === "missing").length;
   const hazardCount = env.filter((e) => e.detected).length;
   const allClear = missingCount === 0 && hazardCount === 0;
 
-  // Jumlah pekerja & pelanggaran per-jenis APD (dari summary backend). Dipakai
-  // untuk lapor "2 of 5 workers missing helmet" alih-alih Missing/Present biner.
   const workers = summary?.person_count ?? 0;
-  const noHelmet = summary?.workers_missing_helmet ?? 0;
-  const noVest = summary?.workers_missing_vest ?? 0;
 
   // Skor risiko agregat. Backend sudah menghitung & memetakan ke band; panel
   // hanya menampilkan. Fallback "safe" kalau summary belum ada.
@@ -229,12 +258,6 @@ export function HazardResultPanel({
   const riskBand = summary?.risk_band ?? "safe";
   const bandMeta = RISK_BAND_META[riskBand] ?? RISK_BAND_META.safe;
   const barPct = Math.min(100, Math.round((riskScore / RISK_BAR_MAX) * 100));
-
-  // Teks pelanggaran per-APD untuk ditempel di baris (mis. "2 of 5").
-  const helmetNote =
-    hasPerson && noHelmet > 0 ? `${noHelmet} of ${workers}` : undefined;
-  const vestNote =
-    hasPerson && noVest > 0 ? `${noVest} of ${workers}` : undefined;
 
   return (
     <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
@@ -328,7 +351,11 @@ export function HazardResultPanel({
                   icon={item.icon}
                   label={item.label}
                   state={item.state}
-                  note={item.label === "Helmet" ? helmetNote : vestNote}
+                  note={
+                    item.state === "missing" && item.missingWorkers > 0
+                      ? `${item.missingWorkers} of ${workers}`
+                      : undefined
+                  }
                   confidence={item.confidence}
                 />
               ))}
@@ -353,7 +380,11 @@ export function HazardResultPanel({
                 icon={item.icon}
                 label={item.label}
                 state={item.state}
-                note={item.label === "Helmet" ? helmetNote : vestNote}
+                note={
+                  item.missingWorkers > 0
+                    ? `${item.missingWorkers} of ${workers}`
+                    : undefined
+                }
                 confidence={item.confidence}
               />
             ))}
@@ -391,7 +422,7 @@ function StatusRow({
 }) {
   const isOk = state === "present" || state === "clear";
   const isNone = state === "none";
-  
+
   const pct = confidence ? Math.round(confidence * 100) : null;
   const text =
     state === "present"
