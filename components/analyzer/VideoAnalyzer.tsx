@@ -103,16 +103,24 @@ export function VideoAnalyzer({
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     detections.forEach((det) => {
+      // Normalize bbox: support both object {x1,y1,x2,y2} and legacy array [x1,y1,x2,y2]
+      let bx1: number, by1: number, bx2: number, by2: number;
+      if (Array.isArray(det.bbox)) {
+        [bx1, by1, bx2, by2] = det.bbox;
+      } else {
+        bx1 = det.bbox.x1; by1 = det.bbox.y1; bx2 = det.bbox.x2; by2 = det.bbox.y2;
+      }
+
       // Scale YOLO coords (in analysis-frame resolution) to canvas size.
       // YOLO bbox coords are in the resized analysis frame (max 1280px),
       // so scale to full video resolution.
       const scaleX = frameWidth ? canvas.width / frameWidth : 1;
       const scaleY = frameHeight ? canvas.height / frameHeight : 1;
 
-      const px1 = det.bbox.x1 * scaleX;
-      const py1 = det.bbox.y1 * scaleY;
-      const pw  = (det.bbox.x2 - det.bbox.x1) * scaleX;
-      const ph  = (det.bbox.y2 - det.bbox.y1) * scaleY;
+      const px1 = bx1 * scaleX;
+      const py1 = by1 * scaleY;
+      const pw  = (bx2 - bx1) * scaleX;
+      const ph  = (by2 - by1) * scaleY;
 
       const color = det.is_violation
         ? "#EF4444"
@@ -160,12 +168,17 @@ export function VideoAnalyzer({
       );
 
       if (response.ok && response.data) {
-        const boxes: DetectionBox[] = response.data.detections.map((d) => ({
-          label:      d.label,
-          confidence: d.confidence_score,
-          danger:     d.is_violation,
-          bbox:       [d.bbox.x1, d.bbox.y1, d.bbox.x2, d.bbox.y2],
-        }));
+        const boxes: DetectionBox[] = response.data.detections.map((d) => {
+          const bb = Array.isArray(d.bbox)
+            ? d.bbox
+            : [d.bbox.x1, d.bbox.y1, d.bbox.x2, d.bbox.y2];
+          return {
+            label:      d.label,
+            confidence: d.confidence_score,
+            danger:     d.is_violation,
+            bbox:       bb as [number, number, number, number],
+          };
+        });
         onDetections?.(boxes);
         onSummary?.(response.data.compliance);
         drawDetections(response.data.detections, response.data.frame_width, response.data.frame_height);
