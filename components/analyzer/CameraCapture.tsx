@@ -46,13 +46,27 @@ type CamStatus = "idle" | "loading" | "live" | "error";
 
 const LIVE_INTERVAL_MS = 2000;
 
+// ── Class colors ──────────────────────────────────────────
+const CLASS_COLORS: Record<string, string> = {
+  person:         "rgba(255, 0, 0, 0.9)",
+  safety_helmet:  "rgba(0, 255, 0, 0.9)",
+  safety_glasses: "rgba(0, 200, 255, 0.9)",
+  safety_gloves:  "rgba(255, 165, 0, 0.9)",
+  safety_boots:   "rgba(128, 0, 255, 0.9)",
+  apron:          "rgba(255, 20, 147, 0.9)",
+  trolley:        "rgba(255, 255, 0, 0.9)",
+  phone:          "rgba(255, 69, 0, 0.9)",
+};
+
 /**
  * Gambar deteksi backend ke canvas. Format dari backend: bbox = {x1, y1, x2, y2, width, height} or [x1, y1, x2, y2].
  */
 function drawBackendDetections(
   canvas: HTMLCanvasElement,
   source: HTMLVideoElement,
-  detections: DetectionBox[]
+  detections: DetectionBox[],
+  frameWidth?: number,
+  frameHeight?: number
 ) {
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
@@ -64,6 +78,10 @@ function drawBackendDetections(
   canvas.width = source.videoWidth;
   canvas.height = source.videoHeight;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Scale YOLO coords (in analysis-frame resolution, max 1280px) to canvas size
+  const scaleX = frameWidth ? canvas.width / frameWidth : 1;
+  const scaleY = frameHeight ? canvas.height / frameHeight : 1;
 
   for (const d of detections) {
     // Handle both bbox formats: array [x1, y1, x2, y2] or object {x1, y1, x2, y2}
@@ -79,24 +97,25 @@ function drawBackendDetections(
       y2 = bbox.y2;
     }
     
-    // YOLO returns pixel coordinates in source video dimensions
-    // Canvas is sized to match source.videoWidth x source.videoHeight
-    // So we can draw directly without scaling
-    const w = x2 - x1;
-    const h = y2 - y1;
-    const color = d.danger ? "#ef4444" : "#22c55e";
+    // Scale to canvas pixel coordinates
+    const px1 = x1 * scaleX;
+    const py1 = y1 * scaleY;
+    const pw  = (x2 - x1) * scaleX;
+    const ph  = (y2 - y1) * scaleY;
+
+    const color = d.danger ? "#ef4444" : (CLASS_COLORS[d.label] ?? "rgba(200, 200, 200, 0.9)");
     const label = `${d.label} ${Math.round(d.confidence * 100)}%`;
 
     ctx.lineWidth = 3;
     ctx.strokeStyle = color;
-    ctx.strokeRect(x1, y1, w, h);
+    ctx.strokeRect(px1, py1, pw, ph);
 
     ctx.font = "bold 14px system-ui";
     const tw = ctx.measureText(label).width + 12;
     ctx.fillStyle = color;
-    ctx.fillRect(x1, Math.max(0, y1 - 22), tw, 22);
+    ctx.fillRect(px1, Math.max(0, py1 - 22), tw, 22);
     ctx.fillStyle = "#fff";
-    ctx.fillText(label, x1 + 6, Math.max(14, y1 - 6));
+    ctx.fillText(label, px1 + 6, Math.max(14, py1 - 6));
   }
 }
 
@@ -122,6 +141,7 @@ export function CameraCapture({
   // selalu memakai nilai terbaru tanpa memicu re-render.
   const boxesRef = useRef<DetectionBox[]>([]);
   const srcDimRef = useRef<{ w: number; h: number }>({ w: 0, h: 0 });
+  const frameDimRef = useRef<{ w: number; h: number }>({ w: 0, h: 0 });
   const liveTimerRef = useRef<number | null>(null);
   const inFlightRef = useRef(false);
 
@@ -198,9 +218,16 @@ export function CameraCapture({
       form.append("area", area || "general");
       const { data, ok } = await api.post<{
         detections: DetectionBox[];
+        frame_width?: number;
+        frame_height?: number;
         summary?: DetectionSummary;
       }>("/inspections/live-preview", form);
       if (ok && data && Array.isArray(data.detections)) {
+        // Simpan dimensi frame analisis untuk scale factor di canvas
+        frameDimRef.current = {
+          w: data.frame_width || srcW,
+          h: data.frame_height || srcH,
+        };
         applyDetections(data.detections, srcW, srcH, data.summary ?? null);
       }
     },
@@ -233,7 +260,7 @@ export function CameraCapture({
             await runDetection(blob, video.videoWidth, video.videoHeight);
             
             // Draw boxes from latest detection
-            drawBackendDetections(canvas, video, boxesRef.current);
+            drawBackendDetections(canvas, video, boxesRef.current, frameDimRef.current.w || video.videoWidth, frameDimRef.current.h || video.videoHeight);
             setObjectCount(boxesRef.current.length);
           }
         } catch {

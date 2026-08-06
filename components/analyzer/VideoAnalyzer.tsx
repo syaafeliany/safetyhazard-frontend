@@ -25,9 +25,23 @@ type Detection = {
 
 type AnalyzeFrameResponse = {
   detections: Detection[];
+  frame_width?: number;
+  frame_height?: number;
   risk_score: number;
   risk_band: string;
   compliance: DetectionSummary;
+};
+
+// ── Class colors ──────────────────────────────────────────
+const CLASS_COLORS: Record<string, string> = {
+  person:         "rgba(255, 0, 0, 0.9)",
+  safety_helmet:  "rgba(0, 255, 0, 0.9)",
+  safety_glasses: "rgba(0, 200, 255, 0.9)",
+  safety_gloves:  "rgba(255, 165, 0, 0.9)",
+  safety_boots:   "rgba(128, 0, 255, 0.9)",
+  apron:          "rgba(255, 20, 147, 0.9)",
+  trolley:        "rgba(255, 255, 0, 0.9)",
+  phone:          "rgba(255, 69, 0, 0.9)",
 };
 
 export function VideoAnalyzer({
@@ -69,7 +83,11 @@ export function VideoAnalyzer({
   };
 
   // ── Draw bounding boxes ───────────────────────────────
-  const drawDetections = useCallback((detections: Detection[]) => {
+  const drawDetections = useCallback((
+    detections: Detection[],
+    frameWidth?: number,
+    frameHeight?: number
+  ) => {
     const canvas = canvasRef.current;
     const video  = videoRef.current;
     if (!canvas || !video) return;
@@ -85,24 +103,32 @@ export function VideoAnalyzer({
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     detections.forEach((det) => {
-      const color = det.is_violation ? "#EF4444" : "#22C55E";
-      
-      // YOLO returns pixel coordinates in source video dimensions
-      // Canvas is sized to match video.videoWidth x video.videoHeight
-      // So we can draw directly without scaling
-      const { x1, y1, width, height } = det.bbox;
+      // Scale YOLO coords (in analysis-frame resolution) to canvas size.
+      // YOLO bbox coords are in the resized analysis frame (max 1280px),
+      // so scale to full video resolution.
+      const scaleX = frameWidth ? canvas.width / frameWidth : 1;
+      const scaleY = frameHeight ? canvas.height / frameHeight : 1;
+
+      const px1 = det.bbox.x1 * scaleX;
+      const py1 = det.bbox.y1 * scaleY;
+      const pw  = (det.bbox.x2 - det.bbox.x1) * scaleX;
+      const ph  = (det.bbox.y2 - det.bbox.y1) * scaleY;
+
+      const color = det.is_violation
+        ? "#EF4444"
+        : CLASS_COLORS[det.label] ?? "rgba(200, 200, 200, 0.9)";
+      const label = `${det.label} ${Math.round(det.confidence_score * 100)}%`;
 
       ctx.strokeStyle = color;
       ctx.lineWidth   = 3;
-      ctx.strokeRect(x1, y1, width, height);
+      ctx.strokeRect(px1, py1, pw, ph);
 
-      const label    = `${det.label} ${Math.round(det.confidence_score * 100)}%`;
-      ctx.font       = "bold 13px Inter, sans-serif";
+      ctx.font = "bold 13px Inter, sans-serif";
       const textWidth = ctx.measureText(label).width;
       ctx.fillStyle  = color;
-      ctx.fillRect(x1, Math.max(0, y1 - 24), textWidth + 12, 24);
+      ctx.fillRect(px1, Math.max(0, py1 - 24), textWidth + 12, 24);
       ctx.fillStyle  = "white";
-      ctx.fillText(label, x1 + 6, Math.max(16, y1 - 7));
+      ctx.fillText(label, px1 + 6, Math.max(16, py1 - 7));
     });
   }, []);
 
@@ -142,7 +168,7 @@ export function VideoAnalyzer({
         }));
         onDetections?.(boxes);
         onSummary?.(response.data.compliance);
-        drawDetections(response.data.detections);
+        drawDetections(response.data.detections, response.data.frame_width, response.data.frame_height);
         setFrameCount((n) => n + 1);
       }
     } catch (err) {
