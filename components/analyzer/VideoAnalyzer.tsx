@@ -46,6 +46,7 @@ export function VideoAnalyzer({
   const containerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const intervalRef  = useRef<NodeJS.Timeout | null>(null);
+  const analyzeRef   = useRef<() => Promise<void>>(() => Promise.resolve());
 
   const [localArea, setLocalArea]     = useState("spray_decoration");
   const area = areaProp ?? localArea;
@@ -141,6 +142,11 @@ export function VideoAnalyzer({
     }
   }, [inspectionId, area, onDetections, onSummary, drawDetections]);
 
+  // Update analyzeRef whenever analyzeFrame changes
+  useEffect(() => {
+    analyzeRef.current = analyzeFrame;
+  }, [analyzeFrame]);
+
   // ── Handle file upload ────────────────────────────────
   const handleFile = async (file: File | undefined) => {
     if (!file) return;
@@ -228,8 +234,8 @@ export function VideoAnalyzer({
     setSaved(false);
 
     // Analyze immediately then every 2 seconds
-    analyzeFrame();
-    intervalRef.current = setInterval(() => analyzeFrame(), 2000);
+    analyzeRef.current();
+    intervalRef.current = setInterval(() => analyzeRef.current(), 2000);
   };
 
   // ── Stop analysis ─────────────────────────────────────
@@ -313,7 +319,6 @@ export function VideoAnalyzer({
         <select
           value={area}
           onChange={(e) => handleAreaChange(e.target.value)}
-          disabled={isAnalyzing}
           className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-brand disabled:opacity-60"
         >
           {AREAS.map((a) => (
@@ -350,7 +355,7 @@ export function VideoAnalyzer({
             {isAnalyzing && (
               <div className="absolute left-3 top-3 z-10 flex items-center gap-2 rounded-full bg-black/60 px-3 py-1 text-xs text-white backdrop-blur-sm">
                 <span className="h-2 w-2 animate-pulse rounded-full bg-red-500" />
-                ANALYZING · {frameCount} frames
+                Analyzing every 2s
               </div>
             )}
             <button
@@ -389,12 +394,15 @@ export function VideoAnalyzer({
         <p className="mt-3 rounded-lg bg-brand/10 px-3 py-2 text-sm text-brand">{error}</p>
       )}
 
-      {/* Saved + PDF */}
-      {saved && inspectionId && (
+      {/* Generate PDF Report - show after first successful detection */}
+      {frameCount > 0 && inspectionId && (
         <div className="mt-3 space-y-2 rounded-lg bg-green-500/10 px-3 py-3">
           <p className="flex items-center gap-1.5 text-sm text-green-600 dark:text-green-500">
             <CheckCircle2 className="size-4" />
-            Analysis complete — {frameCount} frames analyzed. See it in Reports.
+            {saved 
+              ? `Analysis complete — ${frameCount} frames analyzed. See it in Reports.`
+              : `${frameCount} frame${frameCount > 1 ? 's' : ''} analyzed so far...`
+            }
           </p>
           {pdfError && <p className="text-xs text-brand">{pdfError}</p>}
           <button

@@ -7,7 +7,7 @@ import { api } from "@/lib/api";
 import { getClientToken } from "@/lib/auth";
 import type { UserRole } from "@/lib/session";
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://safetyhazard-backend-production.up.railway.app";
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://web-production-07c27.up.railway.app";
 
 type KbDoc = {
   id: string;

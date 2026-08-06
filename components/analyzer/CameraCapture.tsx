@@ -24,7 +24,7 @@ import type {
   DetectionSummary,
 } from "@/components/analyzer/HazardResultPanel";
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://safetyhazard-backend-production.up.railway.app";
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://web-production-07c27.up.railway.app";
 
 type Mode = "camera" | "upload";
 type CamStatus = "idle" | "loading" | "live" | "error";
@@ -214,15 +214,8 @@ export function CameraCapture({
             await runDetection(blob, video.videoWidth, video.videoHeight);
             
             // Draw boxes from latest detection
-            if (boxesRef.current.length > 0) {
-              drawBackendDetections(canvas, video, boxesRef.current);
-              setObjectCount(boxesRef.current.length);
-            } else {
-              // Clear canvas if no detections
-              const ctx = canvas.getContext("2d");
-              if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
-              setObjectCount(0);
-            }
+            drawBackendDetections(canvas, video, boxesRef.current);
+            setObjectCount(boxesRef.current.length);
           }
         } catch {
           // Swallow per-frame errors

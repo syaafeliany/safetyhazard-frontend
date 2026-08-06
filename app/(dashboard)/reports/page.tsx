@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { FileText, Loader2 } from "lucide-react";
+import { FileText, Loader2, Trash2 } from "lucide-react";
 import { api } from "@/lib/api";
 import { ReportFilter } from "@/components/reports/ReportFilter";
 import {
@@ -19,6 +19,8 @@ export default function ReportsPage() {
   const [selected, setSelected] = useState<ReportItem | null>(null);
   const [reports, setReports] = useState<ReportItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<string | null>(null);
 
   const FILTERS = [
     { key: "all", label: t.reports.filter_all },
@@ -31,6 +33,13 @@ export default function ReportsPage() {
   useEffect(() => {
     let active = true;
     (async () => {
+      // Fetch current user to get role
+      const userRes = await api.get<{ role: string }>("/auth/me");
+      if (active && userRes.ok && userRes.data) {
+        setUserRole(userRes.data.role);
+      }
+      
+      // Fetch reports
       const { data, ok } = await api.get<ReportItem[]>("/reports/list");
       if (!active) return;
       if (ok && Array.isArray(data)) setReports(data);
@@ -45,6 +54,28 @@ export default function ReportsPage() {
     if (filter === "all") return reports;
     return reports.filter((r) => r.status === filter || r.risk === filter);
   }, [filter, reports]);
+
+  const handleDelete = async (reportId: string, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent row click
+    
+    const confirmed = window.confirm("Delete this report? This cannot be undone.");
+    if (!confirmed) return;
+    
+    setDeleting(reportId);
+    try {
+      const result = await api.delete(`/reports/${reportId}`);
+      if (result.ok) {
+        // Remove from local state (no page refresh)
+        setReports((prev) => prev.filter((r) => r.id !== reportId));
+      } else {
+        alert("Failed to delete report. Please try again.");
+      }
+    } catch (err) {
+      alert("Error deleting report. Please try again.");
+    } finally {
+      setDeleting(null);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -71,6 +102,9 @@ export default function ReportsPage() {
                 <th className="px-5 py-3 font-semibold">{t.reports.table_status}</th>
                 <th className="px-5 py-3 font-semibold">{t.reports.table_risk}</th>
                 <th className="px-5 py-3 text-right font-semibold">{t.reports.table_issues}</th>
+                {userRole === "inspector" && (
+                  <th className="px-5 py-3 text-right font-semibold">Actions</th>
+                )}
               </tr>
             </thead>
             <tbody>
@@ -96,6 +130,22 @@ export default function ReportsPage() {
                   <td className="px-5 py-3.5 text-right font-semibold text-foreground">
                     {r.issues}
                   </td>
+                  {userRole === "inspector" && (
+                    <td className="px-5 py-3.5 text-right">
+                      <button
+                        onClick={(e) => handleDelete(r.report_id || r.id, e)}
+                        disabled={deleting === (r.report_id || r.id)}
+                        className="inline-flex items-center justify-center rounded-lg p-2 text-muted transition-colors hover:bg-red-500/10 hover:text-red-600 disabled:opacity-50"
+                        title="Delete report"
+                      >
+                        {deleting === (r.report_id || r.id) ? (
+                          <Loader2 className="size-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="size-4" />
+                        )}
+                      </button>
+                    </td>
+                  )}
                 </tr>
               ))}
               {loading && (
