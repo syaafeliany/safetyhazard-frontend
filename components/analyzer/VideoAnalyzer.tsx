@@ -82,6 +82,8 @@ export function VideoAnalyzer({
 
     detections.forEach((det) => {
       const color = det.is_violation ? "#EF4444" : "#22C55E";
+      
+      // Handle bbox - backend now returns object {x1, y1, x2, y2, width, height}
       const { x1, y1, width, height } = det.bbox;
 
       ctx.strokeStyle = color;

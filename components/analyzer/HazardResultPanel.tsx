@@ -27,7 +27,7 @@ export interface DetectionBox {
   label: string;
   confidence: number;
   danger: boolean;
-  bbox: [number, number, number, number];
+  bbox: [number, number, number, number] | { x1: number; y1: number; x2: number; y2: number; width: number; height: number };
 }
 
 /**
