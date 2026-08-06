@@ -57,6 +57,10 @@ function drawBackendDetections(
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
   
+  // Wait for video dimensions to be available
+  if (!source.videoWidth || !source.videoHeight) return;
+  
+  // Set canvas size to match video's natural dimensions
   canvas.width = source.videoWidth;
   canvas.height = source.videoHeight;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -67,12 +71,17 @@ function drawBackendDetections(
     if (Array.isArray(d.bbox)) {
       [x1, y1, x2, y2] = d.bbox;
     } else {
-      x1 = d.bbox.x1;
-      y1 = d.bbox.y1;
-      x2 = d.bbox.x2;
-      y2 = d.bbox.y2;
+      // TypeScript type narrowing: bbox is object type here
+      const bbox = d.bbox as { x1: number; y1: number; x2: number; y2: number; width: number; height: number };
+      x1 = bbox.x1;
+      y1 = bbox.y1;
+      x2 = bbox.x2;
+      y2 = bbox.y2;
     }
     
+    // YOLO returns pixel coordinates in source video dimensions
+    // Canvas is sized to match source.videoWidth x source.videoHeight
+    // So we can draw directly without scaling
     const w = x2 - x1;
     const h = y2 - y1;
     const color = d.danger ? "#ef4444" : "#22c55e";

@@ -330,7 +330,7 @@ export function HazardResultPanel({
               ⚠️ Live Preview: Basic Object Detection Only
             </p>
             <p className="text-xs text-muted">
-              PPE detection requires backend analysis. Use <strong>"Capture & Analyze"</strong> button below for accurate PPE compliance assessment.
+              PPE detection requires backend analysis. Use <strong>&quot;Capture &amp; Analyze&quot;</strong> button below for accurate PPE compliance assessment.
             </p>
           </div>
         ) : (

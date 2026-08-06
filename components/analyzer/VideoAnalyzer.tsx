@@ -76,6 +76,10 @@ export function VideoAnalyzer({
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
+    // Wait for video dimensions to be available
+    if (!video.videoWidth || !video.videoHeight) return;
+
+    // Set canvas size to match video's natural dimensions
     canvas.width  = video.videoWidth;
     canvas.height = video.videoHeight;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -83,7 +87,9 @@ export function VideoAnalyzer({
     detections.forEach((det) => {
       const color = det.is_violation ? "#EF4444" : "#22C55E";
       
-      // Handle bbox - backend now returns object {x1, y1, x2, y2, width, height}
+      // YOLO returns pixel coordinates in source video dimensions
+      // Canvas is sized to match video.videoWidth x video.videoHeight
+      // So we can draw directly without scaling
       const { x1, y1, width, height } = det.bbox;
 
       ctx.strokeStyle = color;
