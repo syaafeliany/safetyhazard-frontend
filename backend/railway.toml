@@ -1,0 +1,10 @@
+[build]
+builder = "nixpacks"
+
+[build.nixpacksplan]
+providers = ["python"]
+
+[deploy]
+startCommand = "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8090}"
+restartPolicyType = "on-failure"
+restartPolicyMaxRetries = 10

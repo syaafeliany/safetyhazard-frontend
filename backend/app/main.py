@@ -7,9 +7,9 @@ from app.routes import auth, inspections, reports, dashboard, admin, knowledge
 load_dotenv()
 
 app = FastAPI(
-    title="SafetyVision API",
-    description="Mattel EHSS SafetyVision — AI-powered workplace hazard detection",
-    version="1.0.0",
+    title="SafetyHazard API",
+    description="Mattel EHSS SafetyHazard — AI-powered workplace hazard detection",
+    version="2.0.0",
 )
 
 # ── CORS ──────────────────────────────────────────────────

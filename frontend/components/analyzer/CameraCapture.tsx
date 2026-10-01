@@ -19,7 +19,7 @@ import type {
   DetectionSummary,
 } from "@/components/analyzer/HazardResultPanel";
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://web-production-07c27.up.railway.app";
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://safetyhazard-production.up.railway.app";
 
 type CamStatus = "idle" | "loading" | "live" | "error";
 

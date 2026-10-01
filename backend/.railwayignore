@@ -1,0 +1,10 @@
+backend/
+frontend/
+.git/
+.github/
+.vscode/
+.claude/
+scripts/
+*.md
+.gitignore
+.env.example
